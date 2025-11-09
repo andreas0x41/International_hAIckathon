@@ -182,6 +182,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_level: { Args: { points: number }; Returns: number }
       update_user_streak: {
         Args: { p_quiz_completed_date: string; p_user_id: string }
         Returns: {
