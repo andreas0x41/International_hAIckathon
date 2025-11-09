@@ -73,7 +73,8 @@ const Admin = () => {
   const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
   const [existingQuizzes, setExistingQuizzes] = useState<any[]>([]);
   const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(true);
-  const [isQuestionsCollapsed, setIsQuestionsCollapsed] = useState(true);
+  const [isManageQuizzesCollapsed, setIsManageQuizzesCollapsed] = useState(true);
+  const [collapsedQuestions, setCollapsedQuestions] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     fetchQuizzes();
@@ -111,7 +112,7 @@ const Admin = () => {
     })) || [{ question: "", options: ["", "", "", ""], correctAnswer: 0 }];
     
     setQuestions(loadedQuestions);
-    setIsQuestionsCollapsed(false);
+    setCollapsedQuestions(new Set());
     
     // Scroll to form
     setTimeout(() => {
@@ -225,7 +226,19 @@ const Admin = () => {
     setDescription("");
     setPointsPerQuestion(10);
     setQuestions([{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
-    setIsQuestionsCollapsed(true);
+    setCollapsedQuestions(new Set());
+  };
+
+  const toggleQuestionCollapse = (index: number) => {
+    setCollapsedQuestions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -296,6 +309,12 @@ const Admin = () => {
       return;
     }
     setQuestions([...questions, { question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+    // Don't collapse the newly added question
+    setCollapsedQuestions(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(questions.length); // The new question index
+      return newSet;
+    });
   };
 
   const removeQuestion = (index: number) => {
@@ -304,6 +323,15 @@ const Admin = () => {
       return;
     }
     setQuestions(questions.filter((_, i) => i !== index));
+    // Update collapsed questions indices
+    setCollapsedQuestions(prev => {
+      const newSet = new Set<number>();
+      prev.forEach(i => {
+        if (i < index) newSet.add(i);
+        else if (i > index) newSet.add(i - 1);
+      });
+      return newSet;
+    });
   };
 
   const updateQuestion = (index: number, field: keyof Question, value: any) => {
@@ -391,7 +419,7 @@ const Admin = () => {
       setDescription("");
       setPointsPerQuestion(10);
       setQuestions([{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
-      setIsQuestionsCollapsed(true);
+      setCollapsedQuestions(new Set());
       
       // Refresh quiz list
       fetchQuizzes();
@@ -437,21 +465,32 @@ const Admin = () => {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8 max-w-4xl space-y-8">
         {/* Existing Quizzes Management */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Manage Existing Quizzes</CardTitle>
-            <CardDescription>
-              Edit, reorder, or delete quizzes from the learning path.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingQuizzes ? (
-              <p className="text-muted-foreground text-center py-4">Loading quizzes...</p>
-            ) : existingQuizzes.length === 0 ? (
-              <p className="text-muted-foreground text-center py-4">No quizzes yet. Create one below!</p>
-            ) : (
-              <div className="space-y-3">
-                {existingQuizzes.map((quiz, index) => (
+        <Collapsible open={!isManageQuizzesCollapsed} onOpenChange={(open) => setIsManageQuizzesCollapsed(!open)}>
+          <Card>
+            <CardHeader>
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between hover:opacity-80 transition-opacity">
+                  <div className="text-left">
+                    <CardTitle className="flex items-center gap-2">
+                      Manage Existing Quizzes
+                      {isManageQuizzesCollapsed ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+                    </CardTitle>
+                    <CardDescription>
+                      Edit, reorder, or delete quizzes from the learning path.
+                    </CardDescription>
+                  </div>
+                </button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent>
+                {isLoadingQuizzes ? (
+                  <p className="text-muted-foreground text-center py-4">Loading quizzes...</p>
+                ) : existingQuizzes.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">No quizzes yet. Create one below!</p>
+                ) : (
+                  <div className="space-y-3">
+                    {existingQuizzes.map((quiz, index) => (
                   <div key={quiz.id} className="flex items-center gap-3 p-4 border rounded-lg bg-muted/50">
                     <div className="flex flex-col gap-1">
                       <Button
@@ -524,11 +563,13 @@ const Admin = () => {
                       </AlertDialog>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
 
         {/* Create/Edit Quiz Form */}
         <Card>
@@ -633,50 +674,62 @@ const Admin = () => {
               </div>
 
               {/* Questions */}
-              <Collapsible open={!isQuestionsCollapsed} onOpenChange={(open) => setIsQuestionsCollapsed(!open)}>
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <CollapsibleTrigger asChild>
-                      <Button type="button" variant="ghost" className="p-0 hover:bg-transparent">
-                        <Label className="text-lg font-semibold cursor-pointer flex items-center gap-2">
-                          Questions ({questions.length})
-                          {isQuestionsCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                        </Label>
-                      </Button>
-                    </CollapsibleTrigger>
-                    <div className="flex gap-2">
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm"
-                        onClick={downloadCurrentQuizAsJson}
-                        disabled={!title || !description}
-                      >
-                        <FileJson className="h-4 w-4 mr-1" />
-                        Download JSON
-                      </Button>
-                      <Button type="button" onClick={addQuestion} size="sm" disabled={questions.length >= 50}>
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Question
-                      </Button>
-                    </div>
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <Label className="text-lg font-semibold">Questions ({questions.length})</Label>
+                  <div className="flex gap-2">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={downloadCurrentQuizAsJson}
+                      disabled={!title || !description}
+                    >
+                      <FileJson className="h-4 w-4 mr-1" />
+                      Download JSON
+                    </Button>
+                    <Button type="button" onClick={addQuestion} size="sm" disabled={questions.length >= 50}>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Question
+                    </Button>
                   </div>
+                </div>
 
-                  <CollapsibleContent className="space-y-6">
-                    {questions.map((question, qIndex) => (
-                      <Card key={qIndex} className="p-4">
+                {questions.map((question, qIndex) => {
+                  const isCollapsed = collapsedQuestions.has(qIndex);
+                  return (
+                    <Card key={qIndex} className="p-4">
+                      <Collapsible open={!isCollapsed} onOpenChange={() => toggleQuestionCollapse(qIndex)}>
                         <div className="space-y-4">
                           <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <Label>Question {qIndex + 1} *</Label>
-                              <Textarea
-                                value={question.question}
-                                onChange={(e) => updateQuestion(qIndex, "question", e.target.value)}
-                                placeholder="Enter your question..."
-                                maxLength={500}
-                                rows={2}
-                              />
-                            </div>
+                            <CollapsibleTrigger asChild>
+                              <button 
+                                type="button"
+                                className="flex-1 text-left hover:opacity-80 transition-opacity"
+                              >
+                                {isCollapsed ? (
+                                  <div className="flex items-center gap-2">
+                                    <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <Label className="cursor-pointer">Question {qIndex + 1}</Label>
+                                      <p className="text-sm text-muted-foreground truncate">
+                                        {question.question || "Empty question"}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {question.options.length} options • Correct: {question.correctAnswer + 1}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-start gap-2">
+                                    <ChevronUp className="h-4 w-4 flex-shrink-0 mt-1" />
+                                    <div className="flex-1">
+                                      <Label className="cursor-pointer">Question {qIndex + 1} *</Label>
+                                    </div>
+                                  </div>
+                                )}
+                              </button>
+                            </CollapsibleTrigger>
                             {questions.length > 1 && (
                               <Button
                                 type="button"
@@ -689,77 +742,87 @@ const Admin = () => {
                             )}
                           </div>
 
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <Label>Answer Options (2-6) *</Label>
-                              <div className="flex gap-1">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    if (question.options.length < 6) {
-                                      const updated = [...questions];
-                                      updated[qIndex].options.push("");
-                                      setQuestions(updated);
-                                    } else {
-                                      toast.error("Maximum 6 options per question");
-                                    }
-                                  }}
-                                  disabled={question.options.length >= 6}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    if (question.options.length > 2) {
-                                      const updated = [...questions];
-                                      // If removing the correct answer, reset to first option
-                                      if (updated[qIndex].correctAnswer >= updated[qIndex].options.length - 1) {
-                                        updated[qIndex].correctAnswer = 0;
+                          <CollapsibleContent className="space-y-4">
+                            <Textarea
+                              value={question.question}
+                              onChange={(e) => updateQuestion(qIndex, "question", e.target.value)}
+                              placeholder="Enter your question..."
+                              maxLength={500}
+                              rows={2}
+                            />
+
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <Label>Answer Options (2-6) *</Label>
+                                <div className="flex gap-1">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      if (question.options.length < 6) {
+                                        const updated = [...questions];
+                                        updated[qIndex].options.push("");
+                                        setQuestions(updated);
+                                      } else {
+                                        toast.error("Maximum 6 options per question");
                                       }
-                                      updated[qIndex].options.pop();
-                                      setQuestions(updated);
-                                    } else {
-                                      toast.error("Must have at least 2 options");
-                                    }
-                                  }}
-                                  disabled={question.options.length <= 2}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
+                                    }}
+                                    disabled={question.options.length >= 6}
+                                  >
+                                    <Plus className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      if (question.options.length > 2) {
+                                        const updated = [...questions];
+                                        // If removing the correct answer, reset to first option
+                                        if (updated[qIndex].correctAnswer >= updated[qIndex].options.length - 1) {
+                                          updated[qIndex].correctAnswer = 0;
+                                        }
+                                        updated[qIndex].options.pop();
+                                        setQuestions(updated);
+                                      } else {
+                                        toast.error("Must have at least 2 options");
+                                      }
+                                    }}
+                                    disabled={question.options.length <= 2}
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               </div>
+                              {question.options.map((option, oIndex) => (
+                                <div key={oIndex} className="flex items-center gap-2">
+                                  <input
+                                    type="radio"
+                                    name={`correct-${qIndex}`}
+                                    checked={question.correctAnswer === oIndex}
+                                    onChange={() => updateQuestion(qIndex, "correctAnswer", oIndex)}
+                                    className="cursor-pointer"
+                                  />
+                                  <Input
+                                    value={option}
+                                    onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
+                                    placeholder={`Option ${oIndex + 1}`}
+                                    maxLength={200}
+                                  />
+                                  <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                    {question.correctAnswer === oIndex ? "✓ Correct" : ""}
+                                  </span>
+                                </div>
+                              ))}
                             </div>
-                            {question.options.map((option, oIndex) => (
-                              <div key={oIndex} className="flex items-center gap-2">
-                                <input
-                                  type="radio"
-                                  name={`correct-${qIndex}`}
-                                  checked={question.correctAnswer === oIndex}
-                                  onChange={() => updateQuestion(qIndex, "correctAnswer", oIndex)}
-                                  className="cursor-pointer"
-                                />
-                                <Input
-                                  value={option}
-                                  onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
-                                  placeholder={`Option ${oIndex + 1}`}
-                                  maxLength={200}
-                                />
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {question.correctAnswer === oIndex ? "✓ Correct" : ""}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
+                          </CollapsibleContent>
                         </div>
-                      </Card>
-                    ))}
-                  </CollapsibleContent>
-                </div>
-              </Collapsible>
+                      </Collapsible>
+                    </Card>
+                  );
+                })}
+              </div>
 
               {/* Submit */}
               <div className="flex gap-4">
