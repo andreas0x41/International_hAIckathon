@@ -14,9 +14,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 // Validation schema
 const questionSchema = z.object({
   question: z.string().trim().min(5, "Question must be at least 5 characters").max(500, "Question too long"),
-  options: z.array(z.string().trim().min(1, "Option cannot be empty").max(200, "Option too long")).length(4, "Must have exactly 4 options"),
-  correctAnswer: z.number().min(0).max(3, "Correct answer must be 0-3"),
-});
+  options: z.array(z.string().trim().min(1, "Option cannot be empty").max(200, "Option too long")).min(2, "Must have at least 2 options").max(6, "Maximum 6 options per question"),
+  correctAnswer: z.number().min(0, "Correct answer must be valid"),
+}).refine(
+  (data) => data.correctAnswer < data.options.length,
+  { message: "Correct answer index must be within options range", path: ["correctAnswer"] }
+);
 
 const quizSchema = z.object({
   title: z.string().trim().min(3, "Title must be at least 3 characters").max(100, "Title too long"),
@@ -28,13 +31,19 @@ const quizSchema = z.object({
 // Schema for imported JSON files (supports both formats)
 const importedQuestionSchema = z.object({
   question: z.string().trim().min(5, "Question must be at least 5 characters").max(500, "Question too long"),
-  options: z.array(z.string().trim().min(1, "Option cannot be empty").max(200, "Option too long")).length(4, "Must have exactly 4 options"),
-  correct_index: z.number().min(0).max(3, "Correct answer must be 0-3").optional(),
-  correctAnswer: z.number().min(0).max(3, "Correct answer must be 0-3").optional(),
+  options: z.array(z.string().trim().min(1, "Option cannot be empty").max(200, "Option too long")).min(2, "Must have at least 2 options").max(6, "Maximum 6 options per question"),
+  correct_index: z.number().min(0, "Correct answer must be valid").optional(),
+  correctAnswer: z.number().min(0, "Correct answer must be valid").optional(),
   context_for_ai: z.string().optional(),
 }).refine(
   (data) => data.correct_index !== undefined || data.correctAnswer !== undefined,
   { message: "Must have either correct_index or correctAnswer" }
+).refine(
+  (data) => {
+    const correctIdx = data.correctAnswer ?? data.correct_index ?? 0;
+    return correctIdx < data.options.length;
+  },
+  { message: "Correct answer index must be within options range" }
 );
 
 const importedQuizSchema = z.object({
@@ -122,20 +131,36 @@ const Admin = () => {
     if (swapIndex < 0 || swapIndex >= existingQuizzes.length) return;
 
     const swapQuiz = existingQuizzes[swapIndex];
+    const currentOrder = currentQuiz.path_order;
+    const swapOrder = swapQuiz.path_order;
 
     try {
-      // Swap the path_order values
+      // Use a temp value to avoid conflicts
+      const tempOrder = -999;
+      
+      // Step 1: Set first quiz to temp
       const { error: error1 } = await supabase
         .from("quizzes")
-        .update({ path_order: swapQuiz.path_order })
+        .update({ path_order: tempOrder })
         .eq("id", currentQuiz.id);
 
+      if (error1) throw error1;
+
+      // Step 2: Move swap quiz to current's position
       const { error: error2 } = await supabase
         .from("quizzes")
-        .update({ path_order: currentQuiz.path_order })
+        .update({ path_order: currentOrder })
         .eq("id", swapQuiz.id);
 
-      if (error1 || error2) throw error1 || error2;
+      if (error2) throw error2;
+
+      // Step 3: Move current quiz to swap's position
+      const { error: error3 } = await supabase
+        .from("quizzes")
+        .update({ path_order: swapOrder })
+        .eq("id", currentQuiz.id);
+
+      if (error3) throw error3;
 
       toast.success("Quiz order updated");
       fetchQuizzes();
@@ -587,7 +612,49 @@ const Admin = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Answer Options *</Label>
+                        <div className="flex items-center justify-between">
+                          <Label>Answer Options (2-6) *</Label>
+                          <div className="flex gap-1">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                if (question.options.length < 6) {
+                                  const updated = [...questions];
+                                  updated[qIndex].options.push("");
+                                  setQuestions(updated);
+                                } else {
+                                  toast.error("Maximum 6 options per question");
+                                }
+                              }}
+                              disabled={question.options.length >= 6}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                if (question.options.length > 2) {
+                                  const updated = [...questions];
+                                  // If removing the correct answer, reset to first option
+                                  if (updated[qIndex].correctAnswer >= updated[qIndex].options.length - 1) {
+                                    updated[qIndex].correctAnswer = 0;
+                                  }
+                                  updated[qIndex].options.pop();
+                                  setQuestions(updated);
+                                } else {
+                                  toast.error("Must have at least 2 options");
+                                }
+                              }}
+                              disabled={question.options.length <= 2}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
                         {question.options.map((option, oIndex) => (
                           <div key={oIndex} className="flex items-center gap-2">
                             <input

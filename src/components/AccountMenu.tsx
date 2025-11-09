@@ -75,7 +75,7 @@ export const AccountMenu = ({ username, onSignOut }: AccountMenuProps) => {
               onClick={() => navigate("/admin")}
             >
               <Plus className="h-4 w-4" />
-              Create Quiz
+              Manage Quizzes
             </Button>
             <Button
               variant="ghost"
