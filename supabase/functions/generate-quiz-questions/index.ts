@@ -11,7 +11,16 @@ serve(async (req) => {
   }
 
   try {
-    const { title, description, numberOfQuestions = 3, pointsPerQuestion = 10 } = await req.json();
+    const { 
+      title, 
+      description, 
+      numberOfQuestions = 3, 
+      pointsPerQuestion = 10,
+      additionalContext = "",
+      theme = "",
+      mode = "add",
+      existingQuestions = []
+    } = await req.json();
 
     if (!title || !description) {
       return new Response(
@@ -29,9 +38,30 @@ serve(async (req) => {
       );
     }
 
-    const systemPrompt = `You are an expert quiz creator specializing in educational content. Generate engaging, educational quiz questions based on the provided topic.
+    let systemPrompt = `You are an expert quiz creator specializing in educational content. Generate engaging, educational quiz questions based on the provided topic.`;
 
-Rules:
+    let userPrompt = "";
+
+    if (mode === "edit") {
+      systemPrompt += `\n\nYour task is to improve and refine existing quiz questions. Make them clearer, more educational, and ensure they have good distractors.`;
+      userPrompt = `Improve these existing quiz questions for the topic:
+
+Title: ${title}
+Description: ${description}
+${theme ? `Theme: ${theme}` : ""}
+${additionalContext ? `Additional Context: ${additionalContext}` : ""}
+
+Existing Questions:
+${JSON.stringify(existingQuestions, null, 2)}
+
+Enhance each question by:
+1. Making the question clearer and more precise
+2. Improving the quality of answer options
+3. Ensuring distractors are plausible but clearly wrong
+4. Adding educational context`;
+
+    } else {
+      systemPrompt += `\n\nRules:
 1. Create exactly ${numberOfQuestions} questions
 2. Each question should have 4 options
 3. Each question should have clear educational value
@@ -39,14 +69,19 @@ Rules:
 5. Provide helpful context for AI to understand the question's educational purpose
 6. Mark the correct answer clearly`;
 
-    const userPrompt = `Create ${numberOfQuestions} quiz questions for the following topic:
+      userPrompt = `Create ${numberOfQuestions} quiz questions for the following topic:
 
 Title: ${title}
 Description: ${description}
+${theme ? `Theme/Focus: ${theme}` : ""}
+${additionalContext ? `Additional Requirements: ${additionalContext}` : ""}
 
 Return the questions in the specified JSON format.`;
+    }
 
     console.log("Calling Lovable AI to generate quiz questions...");
+    console.log("Mode:", mode);
+    console.log("Number of questions:", numberOfQuestions);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -130,7 +165,7 @@ Return the questions in the specified JSON format.`;
     }
 
     const data = await response.json();
-    console.log("AI Response:", JSON.stringify(data, null, 2));
+    console.log("AI Response received");
 
     // Extract the function call result
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
@@ -143,7 +178,7 @@ Return the questions in the specified JSON format.`;
     }
 
     const generatedData = JSON.parse(toolCall.function.arguments);
-    console.log("Generated questions:", generatedData);
+    console.log("Generated", generatedData.questions.length, "questions");
 
     return new Response(
       JSON.stringify(generatedData),

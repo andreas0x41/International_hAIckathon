@@ -6,11 +6,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Leaf, Plus, Trash2, ArrowLeft, Upload, FileJson, Edit, ChevronUp, ChevronDown } from "lucide-react";
+import { Leaf, Plus, Trash2, ArrowLeft, Upload, FileJson, Edit, ChevronUp, ChevronDown, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Validation schema
 const questionSchema = z.object({
@@ -77,6 +79,11 @@ const Admin = () => {
   const [isManageQuizzesCollapsed, setIsManageQuizzesCollapsed] = useState(true);
   const [collapsedQuestions, setCollapsedQuestions] = useState<Set<number>>(new Set());
   const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
+  const [showAIDialog, setShowAIDialog] = useState(false);
+  const [aiMode, setAiMode] = useState<"edit" | "add" | "overwrite">("add");
+  const [aiNumQuestions, setAiNumQuestions] = useState(3);
+  const [aiAdditionalContext, setAiAdditionalContext] = useState("");
+  const [aiTheme, setAiTheme] = useState("");
 
   useEffect(() => {
     fetchQuizzes();
@@ -235,32 +242,50 @@ const Admin = () => {
   const generateQuestionsWithAI = async () => {
     if (!title || !description) {
       toast.error("Please provide a quiz title and description first");
+      setShowAIDialog(false);
       return;
     }
 
     setIsGeneratingWithAI(true);
+    setShowAIDialog(false);
+    
     try {
       const { data, error } = await supabase.functions.invoke('generate-quiz-questions', {
         body: {
           title,
           description,
-          numberOfQuestions: 3,
-          pointsPerQuestion
+          numberOfQuestions: aiNumQuestions,
+          pointsPerQuestion,
+          additionalContext: aiAdditionalContext,
+          theme: aiTheme,
+          mode: aiMode,
+          existingQuestions: aiMode === "edit" ? questions : undefined
         }
       });
 
       if (error) throw error;
 
       if (data?.questions) {
-        setQuestions(data.questions);
+        if (aiMode === "overwrite") {
+          setQuestions(data.questions);
+          toast.success(`Generated ${data.questions.length} new questions!`);
+        } else if (aiMode === "add") {
+          setQuestions([...questions, ...data.questions]);
+          toast.success(`Added ${data.questions.length} new questions!`);
+        } else if (aiMode === "edit") {
+          setQuestions(data.questions);
+          toast.success(`Improved ${data.questions.length} questions!`);
+        }
         setCollapsedQuestions(new Set());
-        toast.success(`Generated ${data.questions.length} questions with AI!`);
       }
     } catch (error: any) {
       console.error("Error generating questions:", error);
       toast.error("Failed to generate questions with AI");
     } finally {
       setIsGeneratingWithAI(false);
+      // Reset AI dialog fields
+      setAiAdditionalContext("");
+      setAiTheme("");
     }
   };
 
@@ -720,15 +745,94 @@ const Admin = () => {
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <Label className="text-lg font-semibold">Questions ({questions.length})</Label>
                   <div className="flex gap-2 flex-wrap">
-                    <Button 
-                      type="button" 
-                      variant="secondary"
-                      size="sm"
-                      onClick={generateQuestionsWithAI}
-                      disabled={!title || !description || isGeneratingWithAI}
-                    >
-                      {isGeneratingWithAI ? "Generating..." : "Generate with AI"}
-                    </Button>
+                    <Dialog open={showAIDialog} onOpenChange={setShowAIDialog}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          type="button" 
+                          variant="secondary"
+                          size="sm"
+                          disabled={!title || !description || isGeneratingWithAI}
+                        >
+                          <Wand2 className="h-4 w-4 mr-1" />
+                          {isGeneratingWithAI ? "Generating..." : "Generate with AI"}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>AI Quiz Generation Settings</DialogTitle>
+                          <DialogDescription>
+                            Configure how AI should generate your quiz questions
+                          </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="ai-mode">Generation Mode</Label>
+                            <Select value={aiMode} onValueChange={(value: "edit" | "add" | "overwrite") => setAiMode(value)}>
+                              <SelectTrigger id="ai-mode">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="add">Add new questions</SelectItem>
+                                <SelectItem value="edit">Edit existing questions</SelectItem>
+                                <SelectItem value="overwrite">Overwrite all questions</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              {aiMode === "add" && "Generate new questions and append them to the existing ones"}
+                              {aiMode === "edit" && "Improve and refine your existing questions"}
+                              {aiMode === "overwrite" && "Replace all questions with newly generated ones"}
+                            </p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="ai-num">Number of Questions</Label>
+                            <Input
+                              id="ai-num"
+                              type="number"
+                              min={1}
+                              max={20}
+                              value={aiNumQuestions}
+                              onChange={(e) => setAiNumQuestions(Math.min(20, Math.max(1, parseInt(e.target.value) || 1)))}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              {aiMode === "edit" ? "Number is based on existing questions" : "Generate between 1-20 questions"}
+                            </p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="ai-context">Additional AI Context (Optional)</Label>
+                            <Textarea
+                              id="ai-context"
+                              value={aiAdditionalContext}
+                              onChange={(e) => setAiAdditionalContext(e.target.value)}
+                              placeholder="E.g., Focus on practical applications, include real-world examples..."
+                              rows={3}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="ai-theme">Question Theme (Optional)</Label>
+                            <Input
+                              id="ai-theme"
+                              value={aiTheme}
+                              onChange={(e) => setAiTheme(e.target.value)}
+                              placeholder="E.g., beginner-friendly, case studies, definitions..."
+                            />
+                          </div>
+                        </div>
+
+                        <DialogFooter>
+                          <Button type="button" variant="outline" onClick={() => setShowAIDialog(false)}>
+                            Cancel
+                          </Button>
+                          <Button type="button" onClick={generateQuestionsWithAI}>
+                            Generate
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    
                     <Button 
                       type="button" 
                       variant="outline" 
