@@ -81,7 +81,8 @@ export const AccountMenu = ({ username, onSignOut }: AccountMenuProps) => {
               variant="ghost"
               className="w-full justify-start gap-2 text-sm"
               onClick={() => {
-                // Navigate to settings - placeholder for now
+                navigate("/settings");
+                setIsExpanded(false);
               }}
             >
               <Settings className="h-4 w-4" />
