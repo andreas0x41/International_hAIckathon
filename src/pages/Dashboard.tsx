@@ -1,20 +1,20 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdventurePathMap } from "@/components/AdventurePathMap";
 import { RewardsMarketplace } from "@/components/RewardsMarketplace";
 import { PointsBadge } from "@/components/PointsBadge";
-import { StreakDisplay } from "@/components/StreakDisplay";
 import { RewardProgress } from "@/components/RewardProgress";
-import { Leaf, LogOut } from "lucide-react";
+import { AccountMenu } from "@/components/AccountMenu";
+import { Leaf, Flame, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("journey");
 
   useEffect(() => {
     const fetchProfile = async (userId: string) => {
@@ -96,33 +96,58 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Compact Header */}
-      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-primary">
-              <Leaf className="h-4 w-4 text-primary-foreground" />
+      {/* Enhanced Navigation Header */}
+      <header className="sticky top-0 z-40 w-full border-b bg-gradient-to-r from-background via-muted/20 to-background backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm">
+        <div className="container flex h-16 items-center justify-between px-4">
+          {/* Logo and Brand */}
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-secondary shadow-[var(--shadow-glow)]">
+              <Leaf className="h-5 w-5 text-primary-foreground" />
             </div>
-            <h1 className="text-base font-bold">Eco Rewards</h1>
+            <div>
+              <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                Eco Rewards
+              </h1>
+              <p className="text-[10px] text-muted-foreground">Learn & Earn</p>
+            </div>
           </div>
+
+          {/* Center Navigation Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 max-w-md mx-8">
+            <TabsList className="grid w-full grid-cols-2 h-10 bg-muted/50">
+              <TabsTrigger 
+                value="journey" 
+                onClick={refreshProfile}
+                className="text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                Learning Journey
+              </TabsTrigger>
+              <TabsTrigger 
+                value="rewards" 
+                onClick={refreshProfile}
+                className="text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                Rewards
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
           
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border border-border/50">
-              <PointsBadge points={profile.total_points} className="text-xs py-1 px-2" />
-              <div className="h-4 w-px bg-border" />
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-muted-foreground">🔥</span>
-                <span className="font-semibold">{profile.current_streak || 0}</span>
+          {/* Right Side Stats and Account */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-card/50 border border-border/50 shadow-sm">
+              <PointsBadge points={profile.total_points} className="text-xs py-1 px-2.5" />
+              <div className="h-5 w-px bg-border" />
+              <div className="flex items-center gap-1.5">
+                <Flame className="h-4 w-4 text-orange-500" />
+                <span className="text-sm font-bold">{profile.current_streak || 0}</span>
               </div>
-              <div className="h-4 w-px bg-border" />
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-muted-foreground">Lv</span>
-                <span className="font-semibold">{profile.current_level}</span>
+              <div className="h-5 w-px bg-border" />
+              <div className="flex items-center gap-1.5">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                <span className="text-sm font-bold">{profile.current_level}</span>
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSignOut}>
-              <LogOut className="h-3.5 w-3.5" />
-            </Button>
+            <AccountMenu username={profile.username} onSignOut={handleSignOut} />
           </div>
         </div>
       </header>
@@ -130,32 +155,17 @@ const Dashboard = () => {
       {/* Reward Progress - Fixed top right */}
       <RewardProgress 
         userPoints={profile.total_points}
-        onNavigateToRewards={() => {
-          // Switch to rewards tab
-          const rewardsTab = document.querySelector('[value="rewards"]') as HTMLElement;
-          rewardsTab?.click();
-        }}
+        onNavigateToRewards={() => setActiveTab("rewards")}
       />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
-        {/* Welcome Message */}
-        <div className="mb-4">
-          <h2 className="text-xl font-bold">Welcome back, {profile.username}! 👋</h2>
-        </div>
-
-        {/* Tabs */}
-        <Tabs defaultValue="journey" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
-            <TabsTrigger value="journey" onClick={refreshProfile}>Learning Journey</TabsTrigger>
-            <TabsTrigger value="rewards" onClick={refreshProfile}>Rewards</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="journey">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsContent value="journey" className="mt-0">
             <AdventurePathMap />
           </TabsContent>
 
-          <TabsContent value="rewards">
+          <TabsContent value="rewards" className="mt-0">
             <RewardsMarketplace userPoints={profile.total_points} onRedemption={refreshProfile} />
           </TabsContent>
         </Tabs>
