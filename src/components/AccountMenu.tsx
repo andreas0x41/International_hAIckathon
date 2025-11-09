@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, Settings, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface AccountMenuProps {
   username: string;
@@ -8,6 +9,7 @@ interface AccountMenuProps {
 }
 
 export const AccountMenu = ({ username, onSignOut }: AccountMenuProps) => {
+  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -67,6 +69,14 @@ export const AccountMenu = ({ username, onSignOut }: AccountMenuProps) => {
           onMouseLeave={handleMouseLeave}
         >
           <div className="p-2 space-y-1 bg-card">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2 text-sm"
+              onClick={() => navigate("/admin")}
+            >
+              <Plus className="h-4 w-4" />
+              Create Quiz
+            </Button>
             <Button
               variant="ghost"
               className="w-full justify-start gap-2 text-sm"
