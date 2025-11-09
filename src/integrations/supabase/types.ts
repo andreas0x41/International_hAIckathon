@@ -18,7 +18,10 @@ export type Database = {
         Row: {
           created_at: string
           current_level: number
+          current_streak: number
           id: string
+          last_quiz_date: string | null
+          longest_streak: number
           total_points: number
           updated_at: string
           username: string
@@ -26,7 +29,10 @@ export type Database = {
         Insert: {
           created_at?: string
           current_level?: number
+          current_streak?: number
           id: string
+          last_quiz_date?: string | null
+          longest_streak?: number
           total_points?: number
           updated_at?: string
           username: string
@@ -34,7 +40,10 @@ export type Database = {
         Update: {
           created_at?: string
           current_level?: number
+          current_streak?: number
           id?: string
+          last_quiz_date?: string | null
+          longest_streak?: number
           total_points?: number
           updated_at?: string
           username?: string
@@ -173,7 +182,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_user_streak: {
+        Args: { p_quiz_completed_date: string; p_user_id: string }
+        Returns: {
+          is_new_record: boolean
+          new_streak: number
+          streak_bonus: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

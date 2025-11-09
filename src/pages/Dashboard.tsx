@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdventureMap } from "@/components/AdventureMap";
 import { RewardsMarketplace } from "@/components/RewardsMarketplace";
 import { PointsBadge } from "@/components/PointsBadge";
+import { StreakDisplay } from "@/components/StreakDisplay";
 import { Leaf, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import heroImage from "@/assets/hero-eco.jpg";
@@ -111,17 +112,25 @@ const Dashboard = () => {
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
         {/* User Info Bar */}
-        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
-          <div>
-            <h2 className="text-2xl font-bold">Welcome back, {profile.username}!</h2>
-            <p className="text-muted-foreground">Level {profile.current_level}</p>
+        <div className="space-y-6 mb-8">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div>
+              <h2 className="text-2xl font-bold">Welcome back, {profile.username}!</h2>
+              <p className="text-muted-foreground">Level {profile.current_level}</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <PointsBadge points={profile.total_points} />
+              <Button variant="outline" size="icon" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            <PointsBadge points={profile.total_points} />
-            <Button variant="outline" size="icon" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+
+          {/* Streak Display */}
+          <StreakDisplay 
+            currentStreak={profile.current_streak || 0}
+            longestStreak={profile.longest_streak || 0}
+          />
         </div>
 
         {/* Tabs */}

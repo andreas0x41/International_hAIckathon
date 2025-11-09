@@ -34,6 +34,9 @@ const Quiz = () => {
   const [score, setScore] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [showCompletion, setShowCompletion] = useState(false);
+  const [streakBonus, setStreakBonus] = useState(0);
+  const [newStreak, setNewStreak] = useState(0);
+  const [isNewRecord, setIsNewRecord] = useState(false);
 
   const { data: quiz, isLoading } = useQuery({
     queryKey: ["quiz", quizId],
@@ -91,6 +94,8 @@ const Quiz = () => {
 
       console.log("Completing quiz with score:", score);
 
+      const completedAt = new Date().toISOString();
+
       // Update progress
       const { error: progressError } = await supabase
         .from("user_progress")
@@ -98,7 +103,7 @@ const Quiz = () => {
           user_id: user.id,
           quiz_id: quizId,
           score,
-          completed_at: new Date().toISOString(),
+          completed_at: completedAt,
           is_unlocked: true,
         }, {
           onConflict: 'user_id,quiz_id'
@@ -109,7 +114,24 @@ const Quiz = () => {
         throw progressError;
       }
 
-      // Update user points
+      // Calculate streak and get bonus
+      const { data: streakData, error: streakError } = await supabase
+        .rpc('update_user_streak', {
+          p_user_id: user.id,
+          p_quiz_completed_date: completedAt
+        });
+
+      if (streakError) {
+        console.error("Streak error:", streakError);
+      } else if (streakData && streakData.length > 0) {
+        const streakResult = streakData[0];
+        console.log("Streak result:", streakResult);
+        setStreakBonus(streakResult.streak_bonus || 0);
+        setNewStreak(streakResult.new_streak || 0);
+        setIsNewRecord(streakResult.is_new_record || false);
+      }
+
+      // Update user points (base score only, streak bonus added by function)
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("total_points")
@@ -214,6 +236,7 @@ const Quiz = () => {
   if (showCompletion) {
     const totalQuestions = quiz.questions_json.length;
     const percentCorrect = Math.round((correctAnswers / totalQuestions) * 100);
+    const totalPoints = score + streakBonus;
     
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -228,6 +251,22 @@ const Quiz = () => {
             <CardDescription className="text-lg">{quiz.title}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Streak notification */}
+            {newStreak > 0 && (
+              <div className="p-4 rounded-lg bg-gradient-to-r from-gold to-accent text-gold-foreground text-center animate-in slide-in-from-top duration-500">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="text-3xl">🔥</span>
+                  <span className="text-2xl font-bold">{newStreak} Day Streak!</span>
+                </div>
+                {isNewRecord && (
+                  <p className="text-sm font-semibold">🎊 New Personal Record!</p>
+                )}
+                {streakBonus > 0 && (
+                  <p className="text-sm font-semibold mt-2">+{streakBonus} Streak Bonus Points!</p>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4 text-center">
               <div className="p-6 rounded-lg bg-muted">
                 <div className="text-4xl font-bold text-primary mb-2">{correctAnswers}/{totalQuestions}</div>
@@ -235,20 +274,36 @@ const Quiz = () => {
               </div>
               <div className="p-6 rounded-lg bg-muted">
                 <div className="text-4xl font-bold text-accent mb-2">{score}</div>
-                <div className="text-sm text-muted-foreground">Points Earned</div>
+                <div className="text-sm text-muted-foreground">Quiz Points</div>
               </div>
             </div>
             
+            {streakBonus > 0 && (
+              <div className="p-4 rounded-lg bg-gold/10 border border-gold text-center">
+                <div className="text-xl font-bold text-gold mb-1">
+                  Total: {totalPoints} Points
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {score} (quiz) + {streakBonus} (streak bonus)
+                </div>
+              </div>
+            )}
+
             <div className="text-center">
               <div className="text-2xl font-semibold mb-2">Score: {percentCorrect}%</div>
               <Progress value={percentCorrect} className="h-3" />
             </div>
 
-            {score > 0 ? (
+            {score > 0 || streakBonus > 0 ? (
               <div className="p-4 rounded-lg bg-primary/10 border border-primary text-center">
                 <p className="text-lg font-semibold text-primary">
-                  🎉 {score} Eco Points added to your account!
+                  🎉 {totalPoints} Eco Points added to your account!
                 </p>
+                {newStreak > 1 && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Come back tomorrow to extend your streak!
+                  </p>
+                )}
               </div>
             ) : (
               <div className="p-4 rounded-lg bg-muted text-center">
@@ -269,6 +324,9 @@ const Quiz = () => {
                   setShowFeedback(false);
                   setScore(0);
                   setCorrectAnswers(0);
+                  setStreakBonus(0);
+                  setNewStreak(0);
+                  setIsNewRecord(false);
                 }}
               >
                 Retake Quiz
