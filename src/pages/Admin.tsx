@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Leaf, Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Leaf, Plus, Trash2, ArrowLeft, Upload, FileJson } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -24,6 +24,26 @@ const quizSchema = z.object({
   questions: z.array(questionSchema).min(1, "Must have at least 1 question").max(50, "Max 50 questions per quiz"),
 });
 
+// Schema for imported JSON files (supports both formats)
+const importedQuestionSchema = z.object({
+  question: z.string().trim().min(5, "Question must be at least 5 characters").max(500, "Question too long"),
+  options: z.array(z.string().trim().min(1, "Option cannot be empty").max(200, "Option too long")).length(4, "Must have exactly 4 options"),
+  correct_index: z.number().min(0).max(3, "Correct answer must be 0-3").optional(),
+  correctAnswer: z.number().min(0).max(3, "Correct answer must be 0-3").optional(),
+  context_for_ai: z.string().optional(),
+}).refine(
+  (data) => data.correct_index !== undefined || data.correctAnswer !== undefined,
+  { message: "Must have either correct_index or correctAnswer" }
+);
+
+const importedQuizSchema = z.object({
+  title: z.string().trim().min(3, "Title must be at least 3 characters").max(100, "Title too long"),
+  description: z.string().trim().min(10, "Description must be at least 10 characters").max(500, "Description too long"),
+  points_per_question: z.number().min(1, "Must award at least 1 point").max(100, "Max 100 points per question").optional(),
+  pointsPerQuestion: z.number().min(1, "Must award at least 1 point").max(100, "Max 100 points per question").optional(),
+  questions: z.array(importedQuestionSchema).min(1, "Must have at least 1 question").max(50, "Max 50 questions per quiz"),
+});
+
 interface Question {
   question: string;
   options: string[];
@@ -39,6 +59,68 @@ const Admin = () => {
     { question: "", options: ["", "", "", ""], correctAnswer: 0 }
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.endsWith('.json')) {
+      toast.error("Please upload a JSON file");
+      return;
+    }
+
+    // Validate file size (max 1MB)
+    if (file.size > 1024 * 1024) {
+      toast.error("File is too large. Maximum size is 1MB");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const jsonData = JSON.parse(e.target?.result as string);
+        
+        // Validate JSON structure
+        const validated = importedQuizSchema.parse(jsonData);
+        
+        // Set form data
+        setTitle(validated.title);
+        setDescription(validated.description);
+        setPointsPerQuestion(validated.points_per_question || validated.pointsPerQuestion || 10);
+        
+        // Convert questions to internal format
+        const convertedQuestions = validated.questions.map(q => ({
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correctAnswer ?? q.correct_index ?? 0,
+        }));
+        
+        setQuestions(convertedQuestions);
+        
+        toast.success(`Quiz loaded! ${convertedQuestions.length} question${convertedQuestions.length > 1 ? 's' : ''} imported.`);
+      } catch (error: any) {
+        if (error instanceof z.ZodError) {
+          const firstError = error.errors[0];
+          toast.error(`Invalid JSON format: ${firstError.message}`);
+        } else if (error instanceof SyntaxError) {
+          toast.error("Invalid JSON file. Please check the file format.");
+        } else {
+          toast.error("Failed to load quiz file");
+          console.error("Import error:", error);
+        }
+      }
+    };
+    
+    reader.onerror = () => {
+      toast.error("Failed to read file");
+    };
+    
+    reader.readAsText(file);
+    
+    // Reset file input
+    event.target.value = '';
+  };
 
   const addQuestion = () => {
     if (questions.length >= 50) {
@@ -173,6 +255,58 @@ const Admin = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* JSON Import */}
+              <div className="p-4 rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="flex items-center gap-2 text-base font-semibold">
+                    <FileJson className="h-5 w-5" />
+                    Import from JSON
+                  </Label>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Upload a JSON file with quiz data to automatically fill the form.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept=".json"
+                    onChange={handleFileUpload}
+                    className="cursor-pointer"
+                    id="json-upload"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const example = {
+                        title: "Example Quiz Title",
+                        description: "This is an example description for your quiz",
+                        points_per_question: 10,
+                        questions: [
+                          {
+                            question: "What is the capital of France?",
+                            options: ["London", "Berlin", "Paris", "Madrid"],
+                            correctAnswer: 2
+                          }
+                        ]
+                      };
+                      const blob = new Blob([JSON.stringify(example, null, 2)], { type: 'application/json' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'quiz-template.json';
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      toast.success("Template downloaded!");
+                    }}
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    Download Template
+                  </Button>
+                </div>
+              </div>
+
               {/* Basic Info */}
               <div className="space-y-4">
                 <div>
