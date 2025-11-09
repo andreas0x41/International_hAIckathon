@@ -387,7 +387,9 @@ export const AdventurePathMap = () => {
               const isHovered = hoveredQuiz === quiz.id;
               const progressPercentage = status === "completed" ? getProgressPercentage(score, quiz) : 0;
               const nodeSize = isMobile ? 16 : 20;
-              const circleRadius = isMobile ? 32 : 40;
+              const nodeSizePx = nodeSize * 4; // 64px or 80px
+              const circleRadius = isMobile ? 40 : 50; // Larger than the node
+              const svgSize = (circleRadius + 10) * 2; // Add padding
 
               return (
                 <div
@@ -402,26 +404,27 @@ export const AdventurePathMap = () => {
                 >
                 {/* Progress Circle for Completed Quizzes */}
                 {status === "completed" && (
-                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
                     <svg 
-                      className="w-28 h-28" 
-                      style={{ transform: 'rotate(-90deg)' }}
-                      viewBox="0 0 120 120"
+                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                      width={svgSize}
+                      height={svgSize}
+                      style={{ transform: 'translate(-50%, -50%) rotate(-90deg)' }}
                     >
                       {/* Background circle */}
                       <circle
-                        cx="60"
-                        cy="60"
+                        cx={svgSize / 2}
+                        cy={svgSize / 2}
                         r={circleRadius}
                         fill="none"
                         stroke="hsl(var(--muted))"
-                        strokeWidth="6"
+                        strokeWidth="4"
                         opacity="0.3"
                       />
                       {/* Progress circle with color coding */}
                       <circle
-                        cx="60"
-                        cy="60"
+                        cx={svgSize / 2}
+                        cy={svgSize / 2}
                         r={circleRadius}
                         fill="none"
                         stroke={
@@ -431,7 +434,7 @@ export const AdventurePathMap = () => {
                             ? "hsl(var(--gold))" 
                             : "hsl(var(--destructive))"
                         }
-                        strokeWidth="6"
+                        strokeWidth="4"
                         strokeDasharray={`${2 * Math.PI * circleRadius}`}
                         strokeDashoffset={`${2 * Math.PI * circleRadius * (1 - progressPercentage / 100)}`}
                         strokeLinecap="round"
@@ -443,17 +446,23 @@ export const AdventurePathMap = () => {
 
                 {/* Glowing Ring for Current Quiz */}
                 {status === "current" && (
-                  <svg className="absolute inset-0 w-24 h-24 -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2">
-                    <circle
-                      cx="48"
-                      cy="48"
-                      r={circleRadius + 2}
-                      fill="none"
-                      stroke="hsl(var(--accent))"
-                      strokeWidth="3"
-                      opacity="0.6"
-                    />
-                  </svg>
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                    <svg 
+                      className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+                      width={svgSize}
+                      height={svgSize}
+                    >
+                      <circle
+                        cx={svgSize / 2}
+                        cy={svgSize / 2}
+                        r={circleRadius + 2}
+                        fill="none"
+                        stroke="hsl(var(--accent))"
+                        strokeWidth="3"
+                        opacity="0.6"
+                      />
+                    </svg>
+                  </div>
                 )}
                 
                 {/* Quiz Node */}
@@ -466,8 +475,8 @@ export const AdventurePathMap = () => {
                       : "bg-muted opacity-60"
                   } ${isHovered ? 'scale-110' : ''}`}
                   style={{
-                    width: `${nodeSize * 4}px`,
-                    height: `${nodeSize * 4}px`,
+                    width: `${nodeSizePx}px`,
+                    height: `${nodeSizePx}px`,
                   }}
                   onClick={() => handleStartQuiz(quiz, unlocked)}
                   onMouseEnter={() => handleMouseEnter(quiz.id, position)}
