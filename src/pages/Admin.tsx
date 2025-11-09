@@ -10,6 +10,7 @@ import { Leaf, Plus, Trash2, ArrowLeft, Upload, FileJson, Edit, ChevronUp, Chevr
 import { toast } from "sonner";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // Validation schema
 const questionSchema = z.object({
@@ -72,6 +73,7 @@ const Admin = () => {
   const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
   const [existingQuizzes, setExistingQuizzes] = useState<any[]>([]);
   const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(true);
+  const [isQuestionsCollapsed, setIsQuestionsCollapsed] = useState(true);
 
   useEffect(() => {
     fetchQuizzes();
@@ -109,11 +111,46 @@ const Admin = () => {
     })) || [{ question: "", options: ["", "", "", ""], correctAnswer: 0 }];
     
     setQuestions(loadedQuestions);
+    setIsQuestionsCollapsed(false);
     
     // Scroll to form
     setTimeout(() => {
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }, 100);
+  };
+
+  const downloadQuizAsJson = (quiz: any) => {
+    const quizData = {
+      title: quiz.title,
+      description: quiz.description,
+      points_per_question: quiz.points_per_question,
+      questions: quiz.questions_json,
+    };
+    const blob = new Blob([JSON.stringify(quizData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${quiz.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Quiz downloaded as JSON!");
+  };
+
+  const downloadCurrentQuizAsJson = () => {
+    const quizData = {
+      title,
+      description,
+      points_per_question: pointsPerQuestion,
+      questions,
+    };
+    const blob = new Blob([JSON.stringify(quizData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase() || 'quiz'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Current quiz downloaded as JSON!");
   };
 
   const handleDeleteQuiz = async (quizId: string) => {
@@ -188,6 +225,7 @@ const Admin = () => {
     setDescription("");
     setPointsPerQuestion(10);
     setQuestions([{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+    setIsQuestionsCollapsed(true);
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -353,6 +391,7 @@ const Admin = () => {
       setDescription("");
       setPointsPerQuestion(10);
       setQuestions([{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+      setIsQuestionsCollapsed(true);
       
       // Refresh quiz list
       fetchQuizzes();
@@ -375,15 +414,18 @@ const Admin = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate("/")}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
             <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-secondary shadow-[var(--shadow-glow)]">
               <Leaf className="h-5 w-5 text-primary-foreground" />
             </div>
-            <div>
+            <div className="text-left">
               <h1 className="text-lg font-bold">Quiz Creator</h1>
               <p className="text-xs text-muted-foreground">Add New Learning Content</p>
             </div>
-          </div>
+          </button>
           
           <Button variant="ghost" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -444,6 +486,13 @@ const Admin = () => {
                     </div>
 
                     <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => downloadQuizAsJson(quiz)}
+                      >
+                        <FileJson className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -584,116 +633,163 @@ const Admin = () => {
               </div>
 
               {/* Questions */}
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <Label className="text-lg font-semibold">Questions ({questions.length})</Label>
-                  <Button type="button" onClick={addQuestion} size="sm" disabled={questions.length >= 50}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Question
-                  </Button>
-                </div>
-
-                {questions.map((question, qIndex) => (
-                  <Card key={qIndex} className="p-4">
-                    <div className="space-y-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <Label>Question {qIndex + 1} *</Label>
-                          <Textarea
-                            value={question.question}
-                            onChange={(e) => updateQuestion(qIndex, "question", e.target.value)}
-                            placeholder="Enter your question..."
-                            maxLength={500}
-                            rows={2}
-                          />
-                        </div>
-                        {questions.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            onClick={() => removeQuestion(qIndex)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label>Answer Options (2-6) *</Label>
-                          <div className="flex gap-1">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                if (question.options.length < 6) {
-                                  const updated = [...questions];
-                                  updated[qIndex].options.push("");
-                                  setQuestions(updated);
-                                } else {
-                                  toast.error("Maximum 6 options per question");
-                                }
-                              }}
-                              disabled={question.options.length >= 6}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                if (question.options.length > 2) {
-                                  const updated = [...questions];
-                                  // If removing the correct answer, reset to first option
-                                  if (updated[qIndex].correctAnswer >= updated[qIndex].options.length - 1) {
-                                    updated[qIndex].correctAnswer = 0;
-                                  }
-                                  updated[qIndex].options.pop();
-                                  setQuestions(updated);
-                                } else {
-                                  toast.error("Must have at least 2 options");
-                                }
-                              }}
-                              disabled={question.options.length <= 2}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                        {question.options.map((option, oIndex) => (
-                          <div key={oIndex} className="flex items-center gap-2">
-                            <input
-                              type="radio"
-                              name={`correct-${qIndex}`}
-                              checked={question.correctAnswer === oIndex}
-                              onChange={() => updateQuestion(qIndex, "correctAnswer", oIndex)}
-                              className="cursor-pointer"
-                            />
-                            <Input
-                              value={option}
-                              onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
-                              placeholder={`Option ${oIndex + 1}`}
-                              maxLength={200}
-                            />
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              {question.correctAnswer === oIndex ? "✓ Correct" : ""}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+              <Collapsible open={!isQuestionsCollapsed} onOpenChange={(open) => setIsQuestionsCollapsed(!open)}>
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <CollapsibleTrigger asChild>
+                      <Button type="button" variant="ghost" className="p-0 hover:bg-transparent">
+                        <Label className="text-lg font-semibold cursor-pointer flex items-center gap-2">
+                          Questions ({questions.length})
+                          {isQuestionsCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                        </Label>
+                      </Button>
+                    </CollapsibleTrigger>
+                    <div className="flex gap-2">
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={downloadCurrentQuizAsJson}
+                        disabled={!title || !description}
+                      >
+                        <FileJson className="h-4 w-4 mr-1" />
+                        Download JSON
+                      </Button>
+                      <Button type="button" onClick={addQuestion} size="sm" disabled={questions.length >= 50}>
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Question
+                      </Button>
                     </div>
-                  </Card>
-                ))}
-              </div>
+                  </div>
+
+                  <CollapsibleContent className="space-y-6">
+                    {questions.map((question, qIndex) => (
+                      <Card key={qIndex} className="p-4">
+                        <div className="space-y-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <Label>Question {qIndex + 1} *</Label>
+                              <Textarea
+                                value={question.question}
+                                onChange={(e) => updateQuestion(qIndex, "question", e.target.value)}
+                                placeholder="Enter your question..."
+                                maxLength={500}
+                                rows={2}
+                              />
+                            </div>
+                            {questions.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="icon"
+                                onClick={() => removeQuestion(qIndex)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <Label>Answer Options (2-6) *</Label>
+                              <div className="flex gap-1">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (question.options.length < 6) {
+                                      const updated = [...questions];
+                                      updated[qIndex].options.push("");
+                                      setQuestions(updated);
+                                    } else {
+                                      toast.error("Maximum 6 options per question");
+                                    }
+                                  }}
+                                  disabled={question.options.length >= 6}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (question.options.length > 2) {
+                                      const updated = [...questions];
+                                      // If removing the correct answer, reset to first option
+                                      if (updated[qIndex].correctAnswer >= updated[qIndex].options.length - 1) {
+                                        updated[qIndex].correctAnswer = 0;
+                                      }
+                                      updated[qIndex].options.pop();
+                                      setQuestions(updated);
+                                    } else {
+                                      toast.error("Must have at least 2 options");
+                                    }
+                                  }}
+                                  disabled={question.options.length <= 2}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                            {question.options.map((option, oIndex) => (
+                              <div key={oIndex} className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name={`correct-${qIndex}`}
+                                  checked={question.correctAnswer === oIndex}
+                                  onChange={() => updateQuestion(qIndex, "correctAnswer", oIndex)}
+                                  className="cursor-pointer"
+                                />
+                                <Input
+                                  value={option}
+                                  onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
+                                  placeholder={`Option ${oIndex + 1}`}
+                                  maxLength={200}
+                                />
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {question.correctAnswer === oIndex ? "✓ Correct" : ""}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
 
               {/* Submit */}
               <div className="flex gap-4">
-                <Button type="submit" disabled={isSubmitting} className="flex-1">
-                  {isSubmitting ? (editingQuizId ? "Updating..." : "Creating...") : (editingQuizId ? "Update Quiz" : "Create Quiz")}
-                </Button>
+                {editingQuizId ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button type="button" disabled={isSubmitting} className="flex-1">
+                        {isSubmitting ? "Updating..." : "Update Quiz"}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirm Quiz Update</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          You are about to update "{title}". This will affect all users who have taken or are currently taking this quiz. Are you sure you want to proceed?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleSubmit}>
+                          Confirm Update
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <Button type="submit" disabled={isSubmitting} className="flex-1">
+                    {isSubmitting ? "Creating..." : "Create Quiz"}
+                  </Button>
+                )}
                 {editingQuizId && (
                   <Button type="button" variant="outline" onClick={handleCancelEdit}>
                     Cancel Edit
