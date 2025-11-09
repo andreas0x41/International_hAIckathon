@@ -64,6 +64,14 @@ interface Question {
   context_for_ai?: string;
 }
 
+// For database storage - using correct_index to match Quiz.tsx expectations
+interface QuestionDB {
+  question: string;
+  options: string[];
+  correct_index: number;
+  context_for_ai?: string;
+}
+
 const Admin = () => {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
@@ -131,11 +139,17 @@ const Admin = () => {
   };
 
   const downloadQuizAsJson = (quiz: any) => {
+    // Convert to DB format for download
     const quizData = {
       title: quiz.title,
       description: quiz.description,
       points_per_question: quiz.points_per_question,
-      questions: quiz.questions_json,
+      questions: quiz.questions_json.map((q: any) => ({
+        question: q.question,
+        options: q.options,
+        correct_index: q.correct_index ?? q.correctAnswer ?? 0,
+        context_for_ai: q.context_for_ai || ""
+      })),
     };
     const blob = new Blob([JSON.stringify(quizData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -148,11 +162,17 @@ const Admin = () => {
   };
 
   const downloadCurrentQuizAsJson = () => {
+    // Convert to DB format for download
     const quizData = {
       title,
       description,
       points_per_question: pointsPerQuestion,
-      questions,
+      questions: questions.map(q => ({
+        question: q.question,
+        options: q.options,
+        correct_index: q.correctAnswer,
+        context_for_ai: q.context_for_ai || ""
+      })),
     };
     const blob = new Blob([JSON.stringify(quizData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -266,15 +286,23 @@ const Admin = () => {
       if (error) throw error;
 
       if (data?.questions) {
+        // Convert AI-generated questions from correct_index to correctAnswer for internal use
+        const convertedQuestions = data.questions.map((q: any) => ({
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correctAnswer ?? q.correct_index ?? 0,
+          context_for_ai: q.context_for_ai || ""
+        }));
+
         if (aiMode === "overwrite") {
-          setQuestions(data.questions);
-          toast.success(`Generated ${data.questions.length} new questions!`);
+          setQuestions(convertedQuestions);
+          toast.success(`Generated ${convertedQuestions.length} new questions!`);
         } else if (aiMode === "add") {
-          setQuestions([...questions, ...data.questions]);
-          toast.success(`Added ${data.questions.length} new questions!`);
+          setQuestions([...questions, ...convertedQuestions]);
+          toast.success(`Added ${convertedQuestions.length} new questions!`);
         } else if (aiMode === "edit") {
-          setQuestions(data.questions);
-          toast.success(`Improved ${data.questions.length} questions!`);
+          setQuestions(convertedQuestions);
+          toast.success(`Improved ${convertedQuestions.length} questions!`);
         }
         setCollapsedQuestions(new Set());
       }
@@ -330,11 +358,12 @@ const Admin = () => {
         setDescription(validated.description);
         setPointsPerQuestion(validated.points_per_question || validated.pointsPerQuestion || 10);
         
-        // Convert questions to internal format
+        // Convert questions to internal format (using correctAnswer for editing)
         const convertedQuestions = validated.questions.map(q => ({
           question: q.question,
           options: q.options,
           correctAnswer: q.correctAnswer ?? q.correct_index ?? 0,
+          context_for_ai: q.context_for_ai || "",
         }));
         
         setQuestions(convertedQuestions);
@@ -420,6 +449,14 @@ const Admin = () => {
         questions,
       });
 
+      // Convert questions to DB format (correct_index instead of correctAnswer)
+      const questionsForDB = validatedData.questions.map(q => ({
+        question: q.question,
+        options: q.options,
+        correct_index: q.correctAnswer,
+        context_for_ai: (q as any).context_for_ai || ""
+      })) as any;
+
       // Check authentication
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -445,7 +482,7 @@ const Admin = () => {
             title: validatedData.title,
             description: validatedData.description,
             points_per_question: validatedData.points_per_question,
-            questions_json: validatedData.questions,
+            questions_json: questionsForDB,
           })
           .eq("id", editingQuizId);
 
@@ -466,7 +503,7 @@ const Admin = () => {
             description: validatedData.description,
             path_order: nextOrder,
             points_per_question: validatedData.points_per_question,
-            questions_json: validatedData.questions,
+            questions_json: questionsForDB,
           });
 
         if (insertError) throw insertError;
@@ -675,13 +712,13 @@ const Admin = () => {
                           {
                             question: "What is the capital of France?",
                             options: ["London", "Berlin", "Paris", "Madrid"],
-                            correctAnswer: 2,
+                            correct_index: 2,
                             context_for_ai: "France is a country in Western Europe known for its rich history and culture."
                           },
                           {
                             question: "Which planet is known as the Red Planet?",
                             options: ["Venus", "Mars", "Jupiter", "Saturn"],
-                            correctAnswer: 1,
+                            correct_index: 1,
                             context_for_ai: "Mars has a reddish appearance due to iron oxide on its surface."
                           }
                         ]

@@ -118,7 +118,7 @@ Return the questions in the specified JSON format.`;
                           items: { type: "string" },
                           description: "Array of 4 answer options"
                         },
-                        correctAnswer: {
+                        correct_index: {
                           type: "number",
                           description: "Index of the correct answer (0-3)"
                         },
@@ -127,7 +127,7 @@ Return the questions in the specified JSON format.`;
                           description: "Additional context to help AI understand this question"
                         }
                       },
-                      required: ["question", "options", "correctAnswer", "context_for_ai"]
+                      required: ["question", "options", "correct_index", "context_for_ai"]
                     }
                   }
                 },
