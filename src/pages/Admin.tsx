@@ -97,11 +97,23 @@ const Admin = () => {
 
   const handleEditQuiz = (quiz: any) => {
     setEditingQuizId(quiz.id);
-    setTitle(quiz.title);
-    setDescription(quiz.description);
-    setPointsPerQuestion(quiz.points_per_question);
-    setQuestions(quiz.questions_json);
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    setTitle(quiz.title || "");
+    setDescription(quiz.description || "");
+    setPointsPerQuestion(quiz.points_per_question || 10);
+    
+    // Ensure questions have proper structure
+    const loadedQuestions = quiz.questions_json?.map((q: any) => ({
+      question: q.question || "",
+      options: Array.isArray(q.options) ? q.options : ["", "", "", ""],
+      correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+    })) || [{ question: "", options: ["", "", "", ""], correctAnswer: 0 }];
+    
+    setQuestions(loadedQuestions);
+    
+    // Scroll to form
+    setTimeout(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    }, 100);
   };
 
   const handleDeleteQuiz = async (quizId: string) => {
@@ -543,7 +555,6 @@ const Admin = () => {
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g., Ocean Conservation"
                     maxLength={100}
-                    required
                   />
                 </div>
 
@@ -556,7 +567,6 @@ const Admin = () => {
                     placeholder="Brief description of what this quiz covers..."
                     maxLength={500}
                     rows={3}
-                    required
                   />
                 </div>
 
@@ -569,7 +579,6 @@ const Admin = () => {
                     onChange={(e) => setPointsPerQuestion(parseInt(e.target.value) || 10)}
                     min={1}
                     max={100}
-                    required
                   />
                 </div>
               </div>
@@ -596,7 +605,6 @@ const Admin = () => {
                             placeholder="Enter your question..."
                             maxLength={500}
                             rows={2}
-                            required
                           />
                         </div>
                         {questions.length > 1 && (
@@ -669,7 +677,6 @@ const Admin = () => {
                               onChange={(e) => updateOption(qIndex, oIndex, e.target.value)}
                               placeholder={`Option ${oIndex + 1}`}
                               maxLength={200}
-                              required
                             />
                             <span className="text-xs text-muted-foreground whitespace-nowrap">
                               {question.correctAnswer === oIndex ? "✓ Correct" : ""}
