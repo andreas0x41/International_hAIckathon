@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { AdventurePathMap } from "@/components/AdventurePathMap";
 import { RewardsMarketplace } from "@/components/RewardsMarketplace";
 import { PointsBadge } from "@/components/PointsBadge";
@@ -29,23 +30,37 @@ const Dashboard = () => {
 
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/auth");
-        return;
+      if (user) {
+        setUser(user);
+        await fetchProfile(user.id);
+      } else {
+        // Guest mode - set default profile
+        setProfile({
+          username: "Guest",
+          total_points: 0,
+          current_level: 1,
+          current_streak: 0,
+          longest_streak: 0,
+        });
       }
-      setUser(user);
-      await fetchProfile(user.id);
     };
 
     checkUser();
 
     // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        navigate("/auth");
-      } else {
+      if (session) {
         setUser(session.user);
         fetchProfile(session.user.id);
+      } else {
+        setUser(null);
+        setProfile({
+          username: "Guest",
+          total_points: 0,
+          current_level: 1,
+          current_streak: 0,
+          longest_streak: 0,
+        });
       }
     });
 
@@ -91,12 +106,27 @@ const Dashboard = () => {
     }
   };
 
-  if (!user || !profile) {
+  if (!profile) {
     return null;
   }
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Guest Mode Banner */}
+      {!user && (
+        <div className="bg-gradient-to-r from-primary to-secondary py-3 px-4 text-center">
+          <p className="text-primary-foreground text-sm">
+            You're in guest mode. Progress won't be saved.{" "}
+            <button
+              onClick={() => navigate("/auth")}
+              className="underline font-semibold hover:opacity-80"
+            >
+              Sign up to save your progress
+            </button>
+          </p>
+        </div>
+      )}
+      
       {/* Enhanced Navigation Header */}
       <header className="sticky top-0 z-40 w-full border-b bg-gradient-to-r from-background via-muted/20 to-background backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm">
         <div className="container flex h-16 items-center justify-between px-4">
@@ -170,7 +200,17 @@ const Dashboard = () => {
                 </Tooltip>
               </div>
               
-              <AccountMenu username={profile.username} onSignOut={handleSignOut} />
+              {user ? (
+                <AccountMenu username={profile.username} onSignOut={handleSignOut} />
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => navigate("/auth")}
+                  className="text-sm"
+                >
+                  Sign Up
+                </Button>
+              )}
             </div>
           </TooltipProvider>
         </div>

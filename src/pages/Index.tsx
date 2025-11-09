@@ -45,13 +45,21 @@ const Index = () => {
           <p className="text-xl md:text-2xl mb-8 text-center max-w-2xl animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
             Turn your eco-knowledge into real rewards while making a difference for our planet
           </p>
-          <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+          <div className="flex flex-col sm:flex-row gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
             <Button
               size="lg"
               className="text-lg px-8 py-6 bg-primary-foreground text-primary hover:bg-primary-foreground/90"
               onClick={() => navigate("/auth")}
             >
               Get Started Free
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="text-lg px-8 py-6 border-2 border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10"
+              onClick={() => navigate("/dashboard")}
+            >
+              Try Without Account
             </Button>
           </div>
         </div>
