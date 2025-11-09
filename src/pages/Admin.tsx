@@ -59,6 +59,7 @@ interface Question {
   question: string;
   options: string[];
   correctAnswer: number;
+  context_for_ai?: string;
 }
 
 const Admin = () => {
@@ -67,7 +68,7 @@ const Admin = () => {
   const [description, setDescription] = useState("");
   const [pointsPerQuestion, setPointsPerQuestion] = useState(10);
   const [questions, setQuestions] = useState<Question[]>([
-    { question: "", options: ["", "", "", ""], correctAnswer: 0 }
+    { question: "", options: ["", "", "", ""], correctAnswer: 0, context_for_ai: "" }
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
@@ -75,6 +76,7 @@ const Admin = () => {
   const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(true);
   const [isManageQuizzesCollapsed, setIsManageQuizzesCollapsed] = useState(true);
   const [collapsedQuestions, setCollapsedQuestions] = useState<Set<number>>(new Set());
+  const [isGeneratingWithAI, setIsGeneratingWithAI] = useState(false);
 
   useEffect(() => {
     fetchQuizzes();
@@ -109,7 +111,8 @@ const Admin = () => {
       question: q.question || "",
       options: Array.isArray(q.options) ? q.options : ["", "", "", ""],
       correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : (typeof q.correct_index === 'number' ? q.correct_index : 0),
-    })) || [{ question: "", options: ["", "", "", ""], correctAnswer: 0 }];
+      context_for_ai: q.context_for_ai || "",
+    })) || [{ question: "", options: ["", "", "", ""], correctAnswer: 0, context_for_ai: "" }];
     
     setQuestions(loadedQuestions);
     setCollapsedQuestions(new Set());
@@ -225,8 +228,40 @@ const Admin = () => {
     setTitle("");
     setDescription("");
     setPointsPerQuestion(10);
-    setQuestions([{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+    setQuestions([{ question: "", options: ["", "", "", ""], correctAnswer: 0, context_for_ai: "" }]);
     setCollapsedQuestions(new Set());
+  };
+
+  const generateQuestionsWithAI = async () => {
+    if (!title || !description) {
+      toast.error("Please provide a quiz title and description first");
+      return;
+    }
+
+    setIsGeneratingWithAI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-quiz-questions', {
+        body: {
+          title,
+          description,
+          numberOfQuestions: 3,
+          pointsPerQuestion
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.questions) {
+        setQuestions(data.questions);
+        setCollapsedQuestions(new Set());
+        toast.success(`Generated ${data.questions.length} questions with AI!`);
+      }
+    } catch (error: any) {
+      console.error("Error generating questions:", error);
+      toast.error("Failed to generate questions with AI");
+    } finally {
+      setIsGeneratingWithAI(false);
+    }
   };
 
   const toggleQuestionCollapse = (index: number) => {
@@ -308,7 +343,7 @@ const Admin = () => {
       toast.error("Maximum 50 questions per quiz");
       return;
     }
-    setQuestions([...questions, { question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+    setQuestions([...questions, { question: "", options: ["", "", "", ""], correctAnswer: 0, context_for_ai: "" }]);
     // Don't collapse the newly added question
     setCollapsedQuestions(prev => {
       const newSet = new Set(prev);
@@ -418,7 +453,7 @@ const Admin = () => {
       setTitle("");
       setDescription("");
       setPointsPerQuestion(10);
-      setQuestions([{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+      setQuestions([{ question: "", options: ["", "", "", ""], correctAnswer: 0, context_for_ai: "" }]);
       setCollapsedQuestions(new Set());
       
       // Refresh quiz list
@@ -615,7 +650,14 @@ const Admin = () => {
                           {
                             question: "What is the capital of France?",
                             options: ["London", "Berlin", "Paris", "Madrid"],
-                            correctAnswer: 2
+                            correctAnswer: 2,
+                            context_for_ai: "France is a country in Western Europe known for its rich history and culture."
+                          },
+                          {
+                            question: "Which planet is known as the Red Planet?",
+                            options: ["Venus", "Mars", "Jupiter", "Saturn"],
+                            correctAnswer: 1,
+                            context_for_ai: "Mars has a reddish appearance due to iron oxide on its surface."
                           }
                         ]
                       };
@@ -675,9 +717,18 @@ const Admin = () => {
 
               {/* Questions */}
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <Label className="text-lg font-semibold">Questions ({questions.length})</Label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <Button 
+                      type="button" 
+                      variant="secondary"
+                      size="sm"
+                      onClick={generateQuestionsWithAI}
+                      disabled={!title || !description || isGeneratingWithAI}
+                    >
+                      {isGeneratingWithAI ? "Generating..." : "Generate with AI"}
+                    </Button>
                     <Button 
                       type="button" 
                       variant="outline" 
@@ -717,6 +768,7 @@ const Admin = () => {
                                       </p>
                                       <p className="text-xs text-muted-foreground">
                                         {question.options.length} options • Correct: {question.correctAnswer + 1}
+                                        {question.context_for_ai && " • Has AI context"}
                                       </p>
                                     </div>
                                   </div>
@@ -743,13 +795,32 @@ const Admin = () => {
                           </div>
 
                           <CollapsibleContent className="space-y-4">
-                            <Textarea
-                              value={question.question}
-                              onChange={(e) => updateQuestion(qIndex, "question", e.target.value)}
-                              placeholder="Enter your question..."
-                              maxLength={500}
-                              rows={2}
-                            />
+                            <div className="space-y-2">
+                              <Label>Question Text *</Label>
+                              <Textarea
+                                value={question.question}
+                                onChange={(e) => updateQuestion(qIndex, "question", e.target.value)}
+                                placeholder="Enter your question..."
+                                maxLength={500}
+                                rows={2}
+                              />
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label htmlFor={`context-${qIndex}`}>AI Context (Optional)</Label>
+                              <Textarea
+                                id={`context-${qIndex}`}
+                                value={question.context_for_ai || ""}
+                                onChange={(e) => updateQuestion(qIndex, "context_for_ai", e.target.value)}
+                                placeholder="Additional context to help AI understand this question better..."
+                                maxLength={500}
+                                rows={2}
+                                className="text-sm"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                This helps AI provide better feedback and explanations for this question.
+                              </p>
+                            </div>
 
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
