@@ -55,6 +55,7 @@ const Quiz = () => {
       correct: boolean;
       context: string;
     }) => {
+      console.log("Requesting AI feedback for:", { question, userAnswer, correct });
       const { data, error } = await supabase.functions.invoke("quiz-feedback", {
         body: {
           question,
@@ -63,11 +64,21 @@ const Quiz = () => {
           context,
         },
       });
-      if (error) throw error;
+      if (error) {
+        console.error("Feedback error:", error);
+        throw error;
+      }
+      console.log("Feedback received:", data);
       return data.feedback;
     },
     onSuccess: (feedback) => {
       setAiFeedback(feedback);
+      setShowFeedback(true);
+    },
+    onError: (error: any) => {
+      console.error("Feedback mutation error:", error);
+      // Show feedback anyway with a fallback message
+      setAiFeedback("Keep learning! Every step you take helps create a more sustainable future.");
       setShowFeedback(true);
     },
   });
@@ -76,6 +87,8 @@ const Quiz = () => {
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+
+      console.log("Completing quiz with score:", score);
 
       // Update progress
       const { error: progressError } = await supabase
@@ -86,16 +99,26 @@ const Quiz = () => {
           score,
           completed_at: new Date().toISOString(),
           is_unlocked: true,
+        }, {
+          onConflict: 'user_id,quiz_id'
         });
 
-      if (progressError) throw progressError;
+      if (progressError) {
+        console.error("Progress error:", progressError);
+        throw progressError;
+      }
 
       // Update user points
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("total_points")
         .eq("id", user.id)
         .single();
+
+      if (profileError) {
+        console.error("Profile fetch error:", profileError);
+        throw profileError;
+      }
 
       if (profile) {
         const { error: updateError } = await supabase
@@ -105,7 +128,10 @@ const Quiz = () => {
           })
           .eq("id", user.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error("Profile update error:", updateError);
+          throw updateError;
+        }
       }
 
       // Unlock next quiz
@@ -122,13 +148,22 @@ const Quiz = () => {
             quiz_id: nextQuiz.id,
             is_unlocked: true,
             score: 0,
+          }, {
+            onConflict: 'user_id,quiz_id'
           });
         }
       }
+
+      return { success: true };
     },
     onSuccess: () => {
+      console.log("Quiz completed successfully!");
       toast.success(`Quiz completed! You earned ${score} points!`);
       navigate("/dashboard");
+    },
+    onError: (error: any) => {
+      console.error("Complete quiz error:", error);
+      toast.error(error.message || "Failed to complete quiz");
     },
   });
 
@@ -162,6 +197,7 @@ const Quiz = () => {
       setShowFeedback(false);
       setAiFeedback("");
     } else {
+      console.log("Triggering complete mutation");
       completeMutation.mutate();
     }
   };
@@ -248,8 +284,10 @@ const Quiz = () => {
                       <p className="text-sm">{aiFeedback}</p>
                     </div>
                   </div>
-                  <Button onClick={handleNext} className="w-full">
-                    {currentQuestion < quiz.questions_json.length - 1 ? "Next Question" : "Complete Quiz"}
+                  <Button onClick={handleNext} className="w-full" disabled={completeMutation.isPending}>
+                    {completeMutation.isPending && "Completing..."}
+                    {!completeMutation.isPending && currentQuestion < quiz.questions_json.length - 1 && "Next Question"}
+                    {!completeMutation.isPending && currentQuestion >= quiz.questions_json.length - 1 && "Complete Quiz"}
                   </Button>
                 </CardContent>
               </Card>
