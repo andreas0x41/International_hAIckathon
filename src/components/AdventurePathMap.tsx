@@ -148,43 +148,38 @@ export const AdventurePathMap = () => {
     setHoverPosition({ x: position.x, y: position.y });
   };
 
-  // Generate winding S-curve path points - one point per quiz
-  const generatePathPoints = (numQuizzes: number): PathPoint[] => {
+  // Parametric path helpers: x-position based on y, ensuring nodes land on the path exactly
+  const xAtY = (y: number, totalHeight: number) => {
+    const amplitude = isMobile ? 120 : 180; // horizontal swing
+    const centerX = isMobile ? 200 : 300;   // canvas center
+    const pathTop = 150;
+    const pathHeight = Math.max(1, totalHeight - 300); // avoid division by zero
+    const s = Math.max(0, Math.min(1, (y - pathTop) / pathHeight));
+    // Number of S-turns based on total quizzes, at least 2 smooth waves
+    const turns = Math.max(2, Math.ceil(quizzes.length / 3));
+    return centerX + amplitude * Math.sin(s * Math.PI * turns);
+  };
+
+  // Generate quiz node points using the same parametric path
+  const generateQuizPoints = (numQuizzes: number, totalHeight: number): PathPoint[] => {
     const points: PathPoint[] = [];
-    const verticalSpacing = 200; // Consistent spacing between nodes
-    const amplitude = isMobile ? 120 : 180; // Width of the curve
-    const centerX = isMobile ? 200 : 300; // Center of the container
-    const frequency = 0.8; // Controls the wave frequency
-    
+    const verticalSpacing = isMobile ? 180 : 200;
     for (let i = 0; i < numQuizzes; i++) {
-      const y = i * verticalSpacing + 150; // Start at 150 from top
-      // Create smooth S-curves using sine wave
-      const x = centerX + amplitude * Math.sin((i * Math.PI) / (frequency * 3));
-      points.push({ x, y });
+      const y = 150 + i * verticalSpacing;
+      points.push({ x: xAtY(y, totalHeight), y });
     }
-    
     return points;
   };
 
-  // Generate smooth SVG path through all points using quadratic bezier curves
-  const generateSVGPath = (points: PathPoint[]): string => {
-    if (points.length < 2) return "";
-    
-    let path = `M ${points[0].x} ${points[0].y}`;
-    
-    for (let i = 1; i < points.length; i++) {
-      const curr = points[i];
-      const prev = points[i - 1];
-      
-      // Control point for smooth curve
-      const controlX = (prev.x + curr.x) / 2;
-      const controlY = (prev.y + curr.y) / 2;
-      
-      // Quadratic bezier curve to current point
-      path += ` Q ${prev.x} ${(prev.y + curr.y) / 2}, ${controlX} ${controlY}`;
-      path += ` T ${curr.x} ${curr.y}`;
+  // Generate dense polyline path that exactly follows xAtY(y)
+  const generateSVGPolyline = (totalHeight: number): string => {
+    const step = 8; // px between samples for smoothness
+    let path = '';
+    for (let y = 150, i = 0; y <= totalHeight - 150; y += step, i++) {
+      const x = xAtY(y, totalHeight);
+      if (i === 0) path += `M ${x} ${y}`;
+      else path += ` L ${x} ${y}`;
     }
-    
     return path;
   };
 
@@ -228,9 +223,16 @@ export const AdventurePathMap = () => {
     return decorations;
   };
 
-  const pathPoints = generatePathPoints(quizzes.length);
-  const svgPath = generateSVGPath(pathPoints);
-  const containerHeight = pathPoints.length > 0 ? pathPoints[pathPoints.length - 1].y + 300 : 1000;
+  // Compute container height based on number of quizzes and spacing
+  const baseTop = 150;
+  const bottomMargin = 300;
+  const verticalSpacing = isMobile ? 180 : 200;
+  const containerHeight = quizzes.length > 0
+    ? baseTop + (quizzes.length - 1) * verticalSpacing + bottomMargin
+    : 1000;
+
+  const pathPoints = generateQuizPoints(quizzes.length, containerHeight);
+  const svgPath = generateSVGPolyline(containerHeight);
   
   // Memoize decorations so they don't change between renders
   const decorationsKey = `${quizzes.length}-${isMobile}`;
