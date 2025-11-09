@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock, CheckCircle2, Leaf, Sparkles } from "lucide-react";
+import { Lock, CheckCircle2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import pathBg from "@/assets/eco-path-bg.jpg";
 
 interface Quiz {
   id: string;
@@ -100,53 +101,110 @@ export const AdventurePathMap = () => {
   };
 
   // Create a winding path layout
-  const getPathPosition = (index: number) => {
+  const getPathPosition = (index: number, total: number) => {
     const positions = [
-      { x: 10, y: 20 },   // Start bottom-left
-      { x: 30, y: 60 },   // Up
-      { x: 50, y: 50 },   // Right
-      { x: 70, y: 70 },   // Down-right
-      { x: 85, y: 40 },   // Up-right
+      { x: 15, y: 75 },   // Start bottom-left
+      { x: 25, y: 55 },   // Up-left
+      { x: 40, y: 45 },   // Center-left
+      { x: 55, y: 60 },   // Down-center
+      { x: 70, y: 40 },   // Up-right
+      { x: 80, y: 25 },   // Top-right
     ];
     return positions[index % positions.length];
   };
 
-  return (
-    <div className="relative min-h-[600px] bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 rounded-3xl p-8 overflow-hidden">
-      {/* Decorative elements */}
-      <div className="absolute top-10 left-10 opacity-20">
-        <Leaf className="h-24 w-24 text-primary animate-pulse" />
-      </div>
-      <div className="absolute bottom-10 right-10 opacity-20">
-        <Sparkles className="h-24 w-24 text-accent animate-pulse" style={{ animationDelay: '1s' }} />
-      </div>
+  const getPathString = () => {
+    let pathString = "";
+    quizzes.forEach((_, index) => {
+      const pos = getPathPosition(index, quizzes.length);
+      if (index === 0) {
+        pathString += `M ${pos.x}% ${pos.y}% `;
+      } else {
+        const prevPos = getPathPosition(index - 1, quizzes.length);
+        const midX = (prevPos.x + pos.x) / 2;
+        const midY = (prevPos.y + pos.y) / 2 - 10; // Curve upward
+        pathString += `Q ${midX}% ${midY}%, ${pos.x}% ${pos.y}% `;
+      }
+    });
+    return pathString;
+  };
 
-      {/* SVG Path */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 0 }}>
+  return (
+    <div 
+      className="relative min-h-[700px] rounded-3xl overflow-hidden shadow-[var(--shadow-lg)]"
+      style={{
+        backgroundImage: `url(${pathBg})`,
+        backgroundSize: '400px 400px',
+        backgroundRepeat: 'repeat',
+        animation: 'scroll-bg 60s linear infinite',
+      }}
+    >
+      {/* Animated background keyframes in style tag */}
+      <style>{`
+        @keyframes scroll-bg {
+          from {
+            background-position: 0 0;
+          }
+          to {
+            background-position: 400px 400px;
+          }
+        }
+      `}</style>
+
+      {/* Overlay for better contrast */}
+      <div className="absolute inset-0 bg-background/10 backdrop-blur-[1px]" />
+
+      {/* SVG Path connecting nodes */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
         <defs>
           <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.3" />
-            <stop offset="50%" stopColor="hsl(var(--secondary))" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity="0.3" />
+            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.6" />
+            <stop offset="50%" stopColor="hsl(var(--secondary))" stopOpacity="0.6" />
+            <stop offset="100%" stopColor="hsl(var(--accent))" stopOpacity="0.6" />
           </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
         </defs>
         <path
-          d="M 10% 80% Q 25% 40%, 30% 40% T 50% 50% Q 60% 60%, 70% 30% T 85% 60%"
+          d={getPathString()}
           stroke="url(#pathGradient)"
-          strokeWidth="8"
+          strokeWidth="12"
           fill="none"
           strokeLinecap="round"
-          strokeDasharray="10,5"
-          className="animate-[dash_20s_linear_infinite]"
+          strokeLinejoin="round"
+          filter="url(#glow)"
+        />
+        {/* Dashed overlay for movement effect */}
+        <path
+          d={getPathString()}
+          stroke="rgba(255,255,255,0.3)"
+          strokeWidth="3"
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray="15,15"
+          className="animate-[dash_3s_linear_infinite]"
         />
       </svg>
 
+      {/* Decorative sparkles */}
+      <div className="absolute top-10 right-10 opacity-30 animate-pulse" style={{ animationDelay: '0s', zIndex: 0 }}>
+        <Sparkles className="h-16 w-16 text-accent" />
+      </div>
+      <div className="absolute bottom-20 left-10 opacity-30 animate-pulse" style={{ animationDelay: '1s', zIndex: 0 }}>
+        <Sparkles className="h-12 w-12 text-primary" />
+      </div>
+
       {/* Quiz nodes */}
-      <div className="relative" style={{ zIndex: 1 }}>
+      <div className="relative p-8" style={{ zIndex: 2 }}>
         {quizzes.map((quiz, index) => {
           const { status, unlocked } = getQuizStatus(quiz, index);
           const quizProgress = progress.find((p) => p.quiz_id === quiz.id);
-          const position = getPathPosition(index);
+          const position = getPathPosition(index, quizzes.length);
           const isHovered = hoveredQuiz === quiz.id;
 
           return (

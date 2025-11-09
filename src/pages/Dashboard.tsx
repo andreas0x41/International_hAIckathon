@@ -10,7 +10,6 @@ import { StreakDisplay } from "@/components/StreakDisplay";
 import { RewardProgress } from "@/components/RewardProgress";
 import { Leaf, LogOut } from "lucide-react";
 import { toast } from "sonner";
-import heroImage from "@/assets/hero-eco.jpg";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -97,53 +96,56 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Header */}
-      <div className="relative h-64 overflow-hidden">
-        <img src={heroImage} alt="Eco Rewards" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/80 to-secondary/80" />
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-primary-foreground">
-          <div className="flex items-center gap-3 mb-2">
-            <Leaf className="h-12 w-12" />
-            <h1 className="text-5xl font-bold">Eco Rewards</h1>
+      {/* Compact Header */}
+      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary">
+              <Leaf className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold">Eco Rewards</h1>
+              <p className="text-xs text-muted-foreground">Learn, Earn, Take Action</p>
+            </div>
           </div>
-          <p className="text-xl font-medium">Learn, Earn, Take Action</p>
+          
+          <div className="flex items-center gap-4">
+            <PointsBadge points={profile.total_points} className="text-sm" />
+            <Button variant="ghost" size="icon" onClick={handleSignOut}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      </header>
+
+      {/* Reward Progress - Fixed top right */}
+      <RewardProgress 
+        userPoints={profile.total_points}
+        onNavigateToRewards={() => {
+          // Switch to rewards tab
+          const rewardsTab = document.querySelector('[value="rewards"]') as HTMLElement;
+          rewardsTab?.click();
+        }}
+      />
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-8">
-        {/* Top Bar with User Info and Reward Progress */}
-        <div className="flex items-start justify-between mb-8 gap-6 flex-wrap">
-          <div className="flex-1 min-w-[300px]">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-2xl font-bold">Welcome back, {profile.username}!</h2>
-                <p className="text-muted-foreground">Level {profile.current_level}</p>
-              </div>
-              <Button variant="outline" size="icon" onClick={handleSignOut}>
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="flex items-center gap-4 mb-4">
-              <PointsBadge points={profile.total_points} />
-            </div>
-
-            <StreakDisplay 
-              currentStreak={profile.current_streak || 0}
-              longestStreak={profile.longest_streak || 0}
-            />
+      <div className="container mx-auto px-4 py-6">
+        {/* User Info and Streak */}
+        <div className="mb-6">
+          <div className="mb-4">
+            <h2 className="text-xl font-bold">Welcome back, {profile.username}!</h2>
+            <p className="text-sm text-muted-foreground">Level {profile.current_level}</p>
           </div>
-
-          {/* Reward Progress in top right */}
-          <div className="w-full md:w-auto">
-            <RewardProgress userPoints={profile.total_points} />
-          </div>
+          
+          <StreakDisplay 
+            currentStreak={profile.current_streak || 0}
+            longestStreak={profile.longest_streak || 0}
+          />
         </div>
 
         {/* Tabs */}
         <Tabs defaultValue="journey" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2 mb-8">
+          <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
             <TabsTrigger value="journey" onClick={refreshProfile}>Learning Journey</TabsTrigger>
             <TabsTrigger value="rewards" onClick={refreshProfile}>Rewards</TabsTrigger>
           </TabsList>
