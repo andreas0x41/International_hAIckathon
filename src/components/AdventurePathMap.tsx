@@ -411,7 +411,7 @@ export const AdventurePathMap = () => {
       <div
         ref={containerRef}
         className="relative overflow-y-auto overflow-x-hidden"
-        style="100%" /*{{ height: isMobile ? '600px' : '700px' }}*/
+        style="height: 100%" /*{{ height: isMobile ? '600px' : '700px' }}*/
       >
         <div className="relative mx-auto" style={{ width: "100%", maxWidth: isMobile ? "400px" : "600px" }}>
           <svg
