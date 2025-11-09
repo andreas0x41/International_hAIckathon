@@ -5,6 +5,7 @@ import { Lock, CheckCircle2, Sparkles, CheckCheck, Check } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { getGuestProgress, saveGuestProgress } from "@/lib/guestProgress";
 
 interface Quiz {
   id: string;
@@ -81,18 +82,58 @@ export const AdventurePathMap = () => {
 
   // Check if user is a guest
   const [isGuest, setIsGuest] = useState(false);
+  const [guestProgress, setGuestProgress] = useState<any[]>([]);
+  
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setIsGuest(!user);
+      if (!user) {
+        const progress = getGuestProgress();
+        setGuestProgress(progress);
+        
+        // Ensure first quiz is always unlocked for guests
+        if (quizzes.length > 0 && !progress.find(p => p.quiz_id === quizzes[0].id)) {
+          saveGuestProgress({
+            quiz_id: quizzes[0].id,
+            score: 0,
+            completed_at: null,
+            is_unlocked: true,
+          });
+          setGuestProgress([...progress, {
+            quiz_id: quizzes[0].id,
+            score: 0,
+            completed_at: null,
+            is_unlocked: true,
+          }]);
+        }
+      }
     };
     checkAuth();
-  }, []);
+  }, [quizzes]);
 
   const getQuizStatus = (quiz: Quiz, index: number) => {
-    // Guest users can access all quizzes
+    // Guest users: check localStorage
     if (isGuest) {
-      return { status: "current", unlocked: true, score: 0 };
+      const guestQuizProgress = guestProgress.find((p) => p.quiz_id === quiz.id);
+      
+      if (guestQuizProgress?.completed_at) {
+        return { status: "completed", unlocked: true, score: guestQuizProgress.score };
+      }
+      
+      if (index === 0 || guestQuizProgress?.is_unlocked) {
+        return { status: "current", unlocked: true, score: 0 };
+      }
+      
+      // Check if previous quiz is completed
+      const previousQuiz = quizzes[index - 1];
+      const previousGuestProgress = guestProgress.find((p) => p.quiz_id === previousQuiz?.id);
+      
+      if (previousGuestProgress?.completed_at) {
+        return { status: "current", unlocked: true, score: 0 };
+      }
+      
+      return { status: "locked", unlocked: false, score: 0 };
     }
     
     const quizProgress = progress.find((p) => p.quiz_id === quiz.id);

@@ -11,12 +11,20 @@ import { AccountMenu } from "@/components/AccountMenu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Leaf, Flame, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
+import { getGuestProgress } from "@/lib/guestProgress";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("journey");
+  const [guestProgressCount, setGuestProgressCount] = useState(0);
+
+  useEffect(() => {
+    const progress = getGuestProgress();
+    const completedCount = progress.filter(p => p.completed_at).length;
+    setGuestProgressCount(completedCount);
+  }, []);
 
   useEffect(() => {
     const fetchProfile = async (userId: string) => {
@@ -70,13 +78,20 @@ const Dashboard = () => {
   // Refresh profile when component becomes visible (e.g., returning from quiz)
   useEffect(() => {
     const handleVisibilityChange = async () => {
-      if (!document.hidden && user) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-        setProfile(profileData);
+      if (!document.hidden) {
+        if (user) {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single();
+          setProfile(profileData);
+        } else {
+          // Update guest progress count
+          const progress = getGuestProgress();
+          const completedCount = progress.filter(p => p.completed_at).length;
+          setGuestProgressCount(completedCount);
+        }
       }
     };
 
@@ -116,13 +131,27 @@ const Dashboard = () => {
       {!user && (
         <div className="bg-gradient-to-r from-primary to-secondary py-3 px-4 text-center">
           <p className="text-primary-foreground text-sm">
-            You're in guest mode. Progress won't be saved.{" "}
-            <button
-              onClick={() => navigate("/auth")}
-              className="underline font-semibold hover:opacity-80"
-            >
-              Sign up to save your progress
-            </button>
+            {guestProgressCount > 0 ? (
+              <>
+                You've completed {guestProgressCount} quiz{guestProgressCount > 1 ? 'zes' : ''}!{" "}
+                <button
+                  onClick={() => navigate("/auth")}
+                  className="underline font-semibold hover:opacity-80"
+                >
+                  Sign up to save your progress
+                </button>
+              </>
+            ) : (
+              <>
+                You're in guest mode. Progress won't be saved.{" "}
+                <button
+                  onClick={() => navigate("/auth")}
+                  className="underline font-semibold hover:opacity-80"
+                >
+                  Sign up to save your progress
+                </button>
+              </>
+            )}
           </p>
         </div>
       )}

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Leaf } from "lucide-react";
 import { toast } from "sonner";
+import { transferGuestProgressToUser, getGuestProgress } from "@/lib/guestProgress";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      const hasGuestProgress = getGuestProgress().length > 0;
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -35,7 +38,20 @@ const Auth = () => {
       if (error) throw error;
 
       if (data.user) {
-        toast.success("Account created! Welcome to Eco Rewards!");
+        // Transfer guest progress if any exists
+        if (hasGuestProgress) {
+          const result = await transferGuestProgressToUser(data.user.id, supabase);
+          if (result.success && result.transferred > 0) {
+            toast.success(
+              `Account created! Your ${result.transferred} quiz${result.transferred > 1 ? 'zes' : ''} and ${result.points || 0} points have been saved!`,
+              { duration: 5000 }
+            );
+          } else {
+            toast.success("Account created! Welcome to Eco Rewards!");
+          }
+        } else {
+          toast.success("Account created! Welcome to Eco Rewards!");
+        }
         navigate("/dashboard");
       }
     } catch (error: any) {

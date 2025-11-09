@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Sparkles, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { saveGuestProgress, unlockNextGuestQuiz } from "@/lib/guestProgress";
 
 interface Question {
   question: string;
@@ -100,8 +101,28 @@ const Quiz = () => {
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Guest mode - skip all database operations
+      // Guest mode - save to localStorage
       if (!user) {
+        const completedAt = new Date().toISOString();
+        saveGuestProgress({
+          quiz_id: quizId!,
+          score,
+          completed_at: completedAt,
+          is_unlocked: true,
+        });
+        
+        // Unlock next quiz in localStorage
+        if (quiz) {
+          const { data: allQuizzes } = await supabase
+            .from("quizzes")
+            .select("id, path_order")
+            .order("path_order");
+          
+          if (allQuizzes) {
+            unlockNextGuestQuiz(quizId!, allQuizzes);
+          }
+        }
+        
         return { success: true, isGuest: true };
       }
 
