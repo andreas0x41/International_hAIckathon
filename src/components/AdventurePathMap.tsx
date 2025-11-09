@@ -68,7 +68,7 @@ export const AdventurePathMap = () => {
     queryKey: ["user-progress"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      if (!user) return []; // Return empty array for guests
 
       const { data, error } = await supabase
         .from("user_progress")
@@ -79,7 +79,22 @@ export const AdventurePathMap = () => {
     },
   });
 
+  // Check if user is a guest
+  const [isGuest, setIsGuest] = useState(false);
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsGuest(!user);
+    };
+    checkAuth();
+  }, []);
+
   const getQuizStatus = (quiz: Quiz, index: number) => {
+    // Guest users can access all quizzes
+    if (isGuest) {
+      return { status: "current", unlocked: true, score: 0 };
+    }
+    
     const quizProgress = progress.find((p) => p.quiz_id === quiz.id);
     
     if (quizProgress?.completed_at) {
@@ -104,22 +119,24 @@ export const AdventurePathMap = () => {
     if (!unlocked) return;
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    
+    // Allow guest users to access quizzes
+    if (user) {
+      const { data: existingProgress } = await supabase
+        .from("user_progress")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("quiz_id", quiz.id)
+        .maybeSingle();
 
-    const { data: existingProgress } = await supabase
-      .from("user_progress")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("quiz_id", quiz.id)
-      .maybeSingle();
-
-    if (!existingProgress) {
-      await supabase.from("user_progress").insert({
-        user_id: user.id,
-        quiz_id: quiz.id,
-        is_unlocked: true,
-        score: 0,
-      });
+      if (!existingProgress) {
+        await supabase.from("user_progress").insert({
+          user_id: user.id,
+          quiz_id: quiz.id,
+          is_unlocked: true,
+          score: 0,
+        });
+      }
     }
 
     navigate(`/quiz/${quiz.id}`);

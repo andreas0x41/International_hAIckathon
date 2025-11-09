@@ -37,6 +37,15 @@ const Quiz = () => {
   const [streakBonus, setStreakBonus] = useState(0);
   const [newStreak, setNewStreak] = useState(0);
   const [isNewRecord, setIsNewRecord] = useState(false);
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setIsGuest(!user);
+    };
+    checkAuth();
+  }, []);
 
   const { data: quiz, isLoading } = useQuery({
     queryKey: ["quiz", quizId],
@@ -90,7 +99,11 @@ const Quiz = () => {
   const completeMutation = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      
+      // Guest mode - skip all database operations
+      if (!user) {
+        return { success: true, isGuest: true };
+      }
 
       console.log("Completing quiz with score:", score);
 
@@ -177,7 +190,7 @@ const Quiz = () => {
         }
       }
 
-      return { success: true };
+      return { success: true, isGuest: false };
     },
     onSuccess: () => {
       console.log("Quiz completed successfully!");
@@ -294,7 +307,23 @@ const Quiz = () => {
               <Progress value={percentCorrect} className="h-3" />
             </div>
 
-            {score > 0 || streakBonus > 0 ? (
+            {isGuest ? (
+              <div className="p-6 rounded-lg bg-gradient-to-r from-primary to-secondary text-primary-foreground text-center">
+                <p className="text-lg font-bold mb-3">
+                  🌟 Want to save your progress?
+                </p>
+                <p className="text-sm mb-4">
+                  Sign up now to track your streaks, earn points, and unlock rewards!
+                </p>
+                <Button
+                  variant="secondary"
+                  className="bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+                  onClick={() => navigate("/auth")}
+                >
+                  Sign Up Free
+                </Button>
+              </div>
+            ) : score > 0 || streakBonus > 0 ? (
               <div className="p-4 rounded-lg bg-primary/10 border border-primary text-center">
                 <p className="text-lg font-semibold text-primary">
                   🎉 {totalPoints} Eco Points added to your account!

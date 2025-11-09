@@ -55,8 +55,7 @@ const Index = () => {
             </Button>
             <Button
               size="lg"
-              variant="outline"
-              className="text-lg px-8 py-6 border-2 border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10"
+              className="text-lg px-8 py-6 bg-primary-foreground text-primary hover:bg-primary-foreground/90"
               onClick={() => navigate("/dashboard")}
             >
               Try Without Account
