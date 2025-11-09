@@ -299,8 +299,9 @@ export const AdventurePathMap = () => {
     }
   };
 
-  const getProgressPercentage = (score: number, totalQuestions: number) => {
-    return Math.min((score / (totalQuestions * 10)) * 100, 100);
+  const getProgressPercentage = (score: number, quiz: Quiz) => {
+    const maxScore = quiz.questions_json.length * quiz.points_per_question;
+    return Math.min((score / maxScore) * 100, 100);
   };
 
   return (
@@ -369,9 +370,9 @@ export const AdventurePathMap = () => {
             const { status, unlocked, score } = getQuizStatus(quiz, index);
             const position = pathPoints[index] || pathPoints[pathPoints.length - 1];
             const isHovered = hoveredQuiz === quiz.id;
-            const progressPercentage = status === "completed" ? getProgressPercentage(score, quiz.questions_json.length) : 0;
+            const progressPercentage = status === "completed" ? getProgressPercentage(score, quiz) : 0;
             const nodeSize = isMobile ? 16 : 20;
-            const circleRadius = isMobile ? 28 : 36;
+            const circleRadius = isMobile ? 32 : 40;
 
             return (
               <div
@@ -386,29 +387,41 @@ export const AdventurePathMap = () => {
               >
                 {/* Progress Circle for Completed Quizzes */}
                 {status === "completed" && (
-                  <svg className="absolute inset-0 w-24 h-24 -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2" style={{ transform: 'translate(-50%, -50%) rotate(-90deg)' }}>
-                    <circle
-                      cx="48"
-                      cy="48"
-                      r={circleRadius}
-                      fill="none"
-                      stroke="hsl(var(--muted))"
-                      strokeWidth="4"
-                      opacity="0.3"
-                    />
-                    <circle
-                      cx="48"
-                      cy="48"
-                      r={circleRadius}
-                      fill="none"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth="4"
-                      strokeDasharray={`${2 * Math.PI * circleRadius}`}
-                      strokeDashoffset={`${2 * Math.PI * circleRadius * (1 - progressPercentage / 100)}`}
-                      strokeLinecap="round"
-                      className="transition-all duration-500"
-                    />
-                  </svg>
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <svg 
+                      className="w-28 h-28" 
+                      style={{ transform: 'rotate(-90deg)' }}
+                      viewBox="0 0 120 120"
+                    >
+                      {/* Background circle */}
+                      <circle
+                        cx="60"
+                        cy="60"
+                        r={circleRadius}
+                        fill="none"
+                        stroke="hsl(var(--muted))"
+                        strokeWidth="6"
+                        opacity="0.3"
+                      />
+                      {/* Progress circle */}
+                      <circle
+                        cx="60"
+                        cy="60"
+                        r={circleRadius}
+                        fill="none"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth="6"
+                        strokeDasharray={`${2 * Math.PI * circleRadius}`}
+                        strokeDashoffset={`${2 * Math.PI * circleRadius * (1 - progressPercentage / 100)}`}
+                        strokeLinecap="round"
+                        className="transition-all duration-500"
+                      />
+                    </svg>
+                    {/* Percentage Label */}
+                    <div className="absolute left-1/2 -bottom-8 -translate-x-1/2 bg-card border border-border rounded-full px-2 py-0.5 text-xs font-bold text-primary whitespace-nowrap shadow-sm">
+                      {Math.round(progressPercentage)}%
+                    </div>
+                  </div>
                 )}
 
                 {/* Glowing Ring for Current Quiz */}
