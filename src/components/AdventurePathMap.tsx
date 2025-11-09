@@ -148,50 +148,52 @@ export const AdventurePathMap = () => {
     setHoverPosition({ x: position.x, y: position.y });
   };
 
-  // Generate winding S-curve path
-  const generatePathPoints = (numPoints: number): PathPoint[] => {
+  // Generate winding S-curve path points - one point per quiz
+  const generatePathPoints = (numQuizzes: number): PathPoint[] => {
     const points: PathPoint[] = [];
-    const amplitude = isMobile ? 80 : 150; // Narrower curve on mobile
-    const verticalSpacing = isMobile ? 160 : 180; // Tighter spacing on mobile
-    const centerX = isMobile ? 200 : 300; // Adjust center for mobile
+    const verticalSpacing = 200; // Consistent spacing between nodes
+    const amplitude = isMobile ? 120 : 180; // Width of the curve
+    const centerX = isMobile ? 200 : 300; // Center of the container
+    const frequency = 0.8; // Controls the wave frequency
     
-    for (let i = 0; i < numPoints; i++) {
-      const y = i * verticalSpacing + 100;
+    for (let i = 0; i < numQuizzes; i++) {
+      const y = i * verticalSpacing + 150; // Start at 150 from top
       // Create smooth S-curves using sine wave
-      const x = centerX + amplitude * Math.sin((i * Math.PI) / 2.5);
+      const x = centerX + amplitude * Math.sin((i * Math.PI) / (frequency * 3));
       points.push({ x, y });
     }
     
     return points;
   };
 
-  // Generate SVG path string from points
+  // Generate smooth SVG path through all points using quadratic bezier curves
   const generateSVGPath = (points: PathPoint[]): string => {
     if (points.length < 2) return "";
     
     let path = `M ${points[0].x} ${points[0].y}`;
     
     for (let i = 1; i < points.length; i++) {
-      const prev = points[i - 1];
       const curr = points[i];
-      const controlPointOffset = 40;
+      const prev = points[i - 1];
       
-      // Create smooth curves using quadratic bezier
-      const midX = (prev.x + curr.x) / 2;
-      const midY = (prev.y + curr.y) / 2;
+      // Control point for smooth curve
+      const controlX = (prev.x + curr.x) / 2;
+      const controlY = (prev.y + curr.y) / 2;
       
-      path += ` Q ${prev.x} ${midY}, ${midX} ${midY}`;
-      path += ` Q ${curr.x} ${midY}, ${curr.x} ${curr.y}`;
+      // Quadratic bezier curve to current point
+      path += ` Q ${prev.x} ${(prev.y + curr.y) / 2}, ${controlX} ${controlY}`;
+      path += ` T ${curr.x} ${curr.y}`;
     }
     
     return path;
   };
 
   // Generate random decorations that don't overlap with nodes
-  const generateDecorations = (pathPoints: PathPoint[]): Decoration[] => {
+  const generateDecorations = (pathPoints: PathPoint[], containerHeight: number): Decoration[] => {
     const decorations: Decoration[] = [];
     const types: Decoration['type'][] = ['tree', 'grass', 'flower', 'cloud', 'rock', 'mushroom', 'butterfly'];
-    const numDecorations = isMobile ? 20 : 40;
+    const numDecorations = isMobile ? 25 : 50;
+    const containerWidth = isMobile ? 400 : 600;
     
     for (let i = 0; i < numDecorations; i++) {
       const type = types[Math.floor(Math.random() * types.length)];
@@ -200,13 +202,13 @@ export const AdventurePathMap = () => {
       
       // Try to find a valid position that doesn't overlap with path
       for (let attempts = 0; attempts < 10; attempts++) {
-        x = Math.random() * 550 + 25;
-        y = Math.random() * (pathPoints.length * 180) + 50;
+        x = Math.random() * (containerWidth - 100) + 50;
+        y = Math.random() * (containerHeight - 200) + 100;
         
         // Check distance from all path points
         validPosition = pathPoints.every(point => {
           const distance = Math.sqrt((x - point.x) ** 2 + (y - point.y) ** 2);
-          return distance > 80; // Minimum distance from path
+          return distance > 100; // Minimum distance from path
         });
         
         if (validPosition) break;
@@ -226,13 +228,19 @@ export const AdventurePathMap = () => {
     return decorations;
   };
 
-  const pathPoints = generatePathPoints(Math.max(quizzes.length, 8));
+  const pathPoints = generatePathPoints(quizzes.length);
   const svgPath = generateSVGPath(pathPoints);
+  const containerHeight = pathPoints.length > 0 ? pathPoints[pathPoints.length - 1].y + 300 : 1000;
   
   // Memoize decorations so they don't change between renders
-  const decorations = useRef<Decoration[]>();
-  if (!decorations.current) {
-    decorations.current = generateDecorations(pathPoints);
+  const decorationsKey = `${quizzes.length}-${isMobile}`;
+  const decorations = useRef<{ key: string; items: Decoration[] }>({ key: '', items: [] });
+  
+  if (decorations.current.key !== decorationsKey) {
+    decorations.current = {
+      key: decorationsKey,
+      items: generateDecorations(pathPoints, containerHeight)
+    };
   }
 
   const renderDecoration = (decoration: Decoration, index: number) => {
@@ -315,17 +323,18 @@ export const AdventurePathMap = () => {
         className="relative overflow-y-auto overflow-x-hidden"
         style={{ height: isMobile ? '600px' : '700px' }}
       >
-        <div className="relative mx-auto" style={{ width: isMobile ? '100%' : '600px', maxWidth: '100%' }}>
+        <div className="relative mx-auto" style={{ width: '100%', maxWidth: isMobile ? '400px' : '600px' }}>
           <svg 
-            className="absolute top-0 left-0 w-full pointer-events-none" 
+            className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none" 
             style={{ 
-              height: `${pathPoints[pathPoints.length - 1]?.y + 200}px`,
+              height: `${containerHeight}px`,
+              width: isMobile ? '400px' : '600px',
             }}
-            viewBox={isMobile ? "0 0 400 2000" : "0 0 600 2000"}
-            preserveAspectRatio="xMidYMid meet"
+            viewBox={isMobile ? "0 0 400 " + containerHeight : "0 0 600 " + containerHeight}
+            preserveAspectRatio="xMidYMin meet"
           >
-          {/* Decorations */}
-          {decorations.current?.map((decoration, index) => renderDecoration(decoration, index))}
+            {/* Decorations */}
+            {decorations.current.items.map((decoration, index) => renderDecoration(decoration, index))}
           
           {/* Path Shadow */}
           <path
@@ -360,31 +369,35 @@ export const AdventurePathMap = () => {
             strokeLinejoin="round"
             opacity="0.4"
           />
-        </svg>
+          </svg>
 
           {/* Quiz Nodes */}
-          <div className="relative" style={{ 
-            height: `${pathPoints[pathPoints.length - 1]?.y + 200}px`,
+          <div className="relative mx-auto" style={{ 
+            height: `${containerHeight}px`,
+            width: isMobile ? '400px' : '600px',
           }}>
-          {quizzes.map((quiz, index) => {
-            const { status, unlocked, score } = getQuizStatus(quiz, index);
-            const position = pathPoints[index] || pathPoints[pathPoints.length - 1];
-            const isHovered = hoveredQuiz === quiz.id;
-            const progressPercentage = status === "completed" ? getProgressPercentage(score, quiz) : 0;
-            const nodeSize = isMobile ? 16 : 20;
-            const circleRadius = isMobile ? 32 : 40;
+            {quizzes.map((quiz, index) => {
+              const { status, unlocked, score } = getQuizStatus(quiz, index);
+              const position = pathPoints[index];
+              
+              if (!position) return null; // Safety check
+              
+              const isHovered = hoveredQuiz === quiz.id;
+              const progressPercentage = status === "completed" ? getProgressPercentage(score, quiz) : 0;
+              const nodeSize = isMobile ? 16 : 20;
+              const circleRadius = isMobile ? 32 : 40;
 
-            return (
-              <div
-                key={quiz.id}
-                className="absolute"
-                style={{
-                  left: `${position.x}px`,
-                  top: `${position.y}px`,
-                  transform: 'translate(-50%, -50%)',
-                  zIndex: isHovered ? 20 : 10,
-                }}
-              >
+              return (
+                <div
+                  key={quiz.id}
+                  className="absolute"
+                  style={{
+                    left: `${position.x}px`,
+                    top: `${position.y}px`,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: isHovered ? 20 : 10,
+                  }}
+                >
                 {/* Progress Circle for Completed Quizzes */}
                 {status === "completed" && (
                   <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -511,11 +524,11 @@ export const AdventurePathMap = () => {
                         )}
                       </div>
                     </CardContent>
-                  </Card>
-                )}
-              </div>
-            );
-          })}
+                </Card>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
