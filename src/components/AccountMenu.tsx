@@ -43,7 +43,7 @@ export const AccountMenu = ({ username, onSignOut }: AccountMenuProps) => {
 
       {/* Expanded Menu */}
       {isExpanded && (
-        <div className="absolute top-full right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-[var(--shadow-lg)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
+        <div className="absolute top-full right-0 mt-1 w-48 bg-card border border-border rounded-lg shadow-[var(--shadow-lg)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
           <div className="p-2 space-y-1 bg-card">
             <Button
               variant="ghost"

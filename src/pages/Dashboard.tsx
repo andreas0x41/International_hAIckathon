@@ -150,8 +150,8 @@ const Dashboard = () => {
                     </div>
                   </TooltipTrigger>
                   <TooltipContent className="bg-card border-border">
-                    <p className="text-xs font-semibold">Total Points Earned</p>
-                    <p className="text-[10px] text-muted-foreground">Use points to redeem rewards</p>
+                    <p className="text-sm font-semibold">Total Points Earned</p>
+                    <p className="text-xs text-muted-foreground">Use points to redeem rewards</p>
                   </TooltipContent>
                 </Tooltip>
                 
@@ -165,9 +165,9 @@ const Dashboard = () => {
                     </div>
                   </TooltipTrigger>
                   <TooltipContent className="bg-card border-border">
-                    <p className="text-xs font-semibold">Current Streak: {profile.current_streak || 0} days</p>
-                    <p className="text-[10px] text-muted-foreground">Longest: {profile.longest_streak || 0} days</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Complete quizzes daily to maintain</p>
+                    <p className="text-sm font-semibold">Current Streak: {profile.current_streak || 0} days</p>
+                    <p className="text-xs text-muted-foreground">Longest: {profile.longest_streak || 0} days</p>
+                    <p className="text-xs text-muted-foreground mt-1">Complete quizzes daily to maintain</p>
                   </TooltipContent>
                 </Tooltip>
                 
@@ -181,8 +181,8 @@ const Dashboard = () => {
                     </div>
                   </TooltipTrigger>
                   <TooltipContent className="bg-card border-border">
-                    <p className="text-xs font-semibold">Current Level</p>
-                    <p className="text-[10px] text-muted-foreground">Level up by earning more points</p>
+                    <p className="text-sm font-semibold">Current Level</p>
+                    <p className="text-xs text-muted-foreground">Level up by earning more points</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
