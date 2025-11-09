@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock, CheckCircle2, Sparkles } from "lucide-react";
+import { Lock, CheckCircle2, Sparkles, CheckCheck, Check } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -418,13 +418,19 @@ export const AdventurePathMap = () => {
                         strokeWidth="6"
                         opacity="0.3"
                       />
-                      {/* Progress circle */}
+                      {/* Progress circle with color coding */}
                       <circle
                         cx="60"
                         cy="60"
                         r={circleRadius}
                         fill="none"
-                        stroke="hsl(var(--primary))"
+                        stroke={
+                          progressPercentage >= 90 
+                            ? "hsl(var(--primary))" 
+                            : progressPercentage >= 70 
+                            ? "hsl(var(--gold))" 
+                            : "hsl(var(--destructive))"
+                        }
                         strokeWidth="6"
                         strokeDasharray={`${2 * Math.PI * circleRadius}`}
                         strokeDashoffset={`${2 * Math.PI * circleRadius * (1 - progressPercentage / 100)}`}
@@ -432,10 +438,6 @@ export const AdventurePathMap = () => {
                         className="transition-all duration-500"
                       />
                     </svg>
-                    {/* Percentage Label */}
-                    <div className="absolute left-1/2 -bottom-8 -translate-x-1/2 bg-card border border-border rounded-full px-2 py-0.5 text-xs font-bold text-primary whitespace-nowrap shadow-sm">
-                      {Math.round(progressPercentage)}%
-                    </div>
                   </div>
                 )}
 
@@ -472,7 +474,13 @@ export const AdventurePathMap = () => {
                   onMouseLeave={() => handleMouseLeave(quiz.id)}
                 >
                   {status === "completed" && (
-                    <CheckCircle2 className={`${isMobile ? 'h-8 w-8' : 'h-10 w-10'} text-primary-foreground`} />
+                    <>
+                      {progressPercentage === 100 ? (
+                        <CheckCheck className={`${isMobile ? 'h-8 w-8' : 'h-10 w-10'} text-primary-foreground`} />
+                      ) : (
+                        <Check className={`${isMobile ? 'h-8 w-8' : 'h-10 w-10'} text-primary-foreground`} />
+                      )}
+                    </>
                   )}
                   {status === "current" && (
                     <div className="relative">
@@ -487,7 +495,16 @@ export const AdventurePathMap = () => {
                 {/* Hover Card */}
                 {isHovered && !isMobile && (
                   <Card 
-                    className="hover-card absolute left-24 top-0 w-80 shadow-[var(--shadow-lg)] animate-in fade-in slide-in-from-left-2 duration-200 z-30 bg-card"
+                    className="hover-card absolute w-80 shadow-[var(--shadow-lg)] animate-in fade-in duration-200 z-30 bg-card"
+                    style={{
+                      // Smart positioning: check if we're in bottom half, if so show above, else below
+                      top: position.y > containerHeight / 2 ? 'auto' : '100%',
+                      bottom: position.y > containerHeight / 2 ? '100%' : 'auto',
+                      left: position.x > (isMobile ? 200 : 300) ? 'auto' : '24px',
+                      right: position.x > (isMobile ? 200 : 300) ? '24px' : 'auto',
+                      marginTop: position.y > containerHeight / 2 ? '0' : '8px',
+                      marginBottom: position.y > containerHeight / 2 ? '8px' : '0',
+                    }}
                     onMouseEnter={() => handleMouseEnter(quiz.id, position)}
                     onMouseLeave={() => handleMouseLeave(quiz.id)}
                   >

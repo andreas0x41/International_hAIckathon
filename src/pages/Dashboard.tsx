@@ -100,8 +100,11 @@ const Dashboard = () => {
       {/* Enhanced Navigation Header */}
       <header className="sticky top-0 z-40 w-full border-b bg-gradient-to-r from-background via-muted/20 to-background backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 shadow-sm">
         <div className="container flex h-16 items-center justify-between px-4">
-          {/* Logo and Brand */}
-          <div className="flex items-center gap-3">
+          {/* Logo and Brand - Clickable to go to Journey */}
+          <div 
+            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => setActiveTab("journey")}
+          >
             <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-secondary shadow-[var(--shadow-glow)]">
               <Leaf className="h-5 w-5 text-primary-foreground" />
             </div>
@@ -112,26 +115,6 @@ const Dashboard = () => {
               <p className="text-[10px] text-muted-foreground">Learn & Earn</p>
             </div>
           </div>
-
-          {/* Center Navigation Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 max-w-md mx-8">
-            <TabsList className="grid w-full grid-cols-2 h-10 bg-muted/50">
-              <TabsTrigger 
-                value="journey" 
-                onClick={refreshProfile}
-                className="text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                Learning Journey
-              </TabsTrigger>
-              <TabsTrigger 
-                value="rewards" 
-                onClick={refreshProfile}
-                className="text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                Rewards
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
           
           {/* Right Side Stats and Account */}
           <TooltipProvider delayDuration={200}>

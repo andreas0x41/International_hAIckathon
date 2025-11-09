@@ -65,15 +65,15 @@ export const RewardProgress = ({ userPoints, onNavigateToRewards, compact = fals
   if (compact) {
     return (
       <div
-        className="transition-all duration-300 cursor-pointer"
+        className="relative transition-all duration-300 cursor-pointer"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
       >
         <div
           className={`bg-card/50 border border-border/50 rounded-full shadow-sm overflow-hidden transition-all duration-300 ${
-            isExpanded ? "w-64 px-4" : "w-14 px-2"
-          } py-2 flex items-center gap-2`}
+            isExpanded ? "w-16" : "w-14"
+          } h-14 px-2 py-2 flex items-center justify-center`}
         >
           {/* Circular Progress */}
           <div className="relative w-10 h-10 flex-shrink-0">
@@ -106,24 +106,24 @@ export const RewardProgress = ({ userPoints, onNavigateToRewards, compact = fals
               <Gift className="h-4 w-4 text-primary" />
             </div>
           </div>
-
-          {/* Expanded Details */}
-          {isExpanded && (
-            <div 
-              className="animate-in fade-in slide-in-from-left-2 duration-200 flex-1 min-w-0"
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-            >
-              <p className="text-xs font-semibold truncate">{nextReward.title}</p>
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <Coins className="h-3 w-3 text-gold" />
-                <span>
-                  {userPoints} / {nextReward.points_cost}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Expanded Details - Below */}
+        {isExpanded && nextReward && (
+          <div 
+            className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-card border border-border rounded-lg shadow-[var(--shadow-lg)] p-3 animate-in fade-in slide-in-from-top-2 duration-200 z-[70]"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <p className="text-xs font-semibold mb-1">{nextReward.title}</p>
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <Coins className="h-3 w-3 text-gold" />
+              <span>
+                {userPoints} / {nextReward.points_cost} points
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
