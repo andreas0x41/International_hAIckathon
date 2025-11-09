@@ -16,6 +16,15 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
+    const fetchProfile = async (userId: string) => {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+      setProfile(profileData);
+    };
+
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -23,15 +32,7 @@ const Dashboard = () => {
         return;
       }
       setUser(user);
-
-      // Fetch profile
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-      
-      setProfile(profileData);
+      await fetchProfile(user.id);
     };
 
     checkUser();
@@ -42,18 +43,29 @@ const Dashboard = () => {
         navigate("/auth");
       } else {
         setUser(session.user);
-        // Refresh profile when session changes
-        supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", session.user.id)
-          .single()
-          .then(({ data }) => setProfile(data));
+        fetchProfile(session.user.id);
       }
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  // Refresh profile when component becomes visible (e.g., returning from quiz)
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (!document.hidden && user) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        setProfile(profileData);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [user]);
 
   // Refresh profile when switching tabs
   const refreshProfile = async () => {

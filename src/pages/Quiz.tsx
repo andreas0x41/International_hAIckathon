@@ -33,6 +33,7 @@ const Quiz = () => {
   const [aiFeedback, setAiFeedback] = useState("");
   const [score, setScore] = useState(0);
   const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [showCompletion, setShowCompletion] = useState(false);
 
   const { data: quiz, isLoading } = useQuery({
     queryKey: ["quiz", quizId],
@@ -158,8 +159,7 @@ const Quiz = () => {
     },
     onSuccess: () => {
       console.log("Quiz completed successfully!");
-      toast.success(`Quiz completed! You earned ${score} points!`);
-      navigate("/dashboard");
+      setShowCompletion(true);
     },
     onError: (error: any) => {
       console.error("Complete quiz error:", error);
@@ -208,6 +208,82 @@ const Quiz = () => {
 
   if (!quiz) {
     return <div className="min-h-screen flex items-center justify-center">Quiz not found</div>;
+  }
+
+  // Show completion screen
+  if (showCompletion) {
+    const totalQuestions = quiz.questions_json.length;
+    const percentCorrect = Math.round((correctAnswers / totalQuestions) * 100);
+    
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-2xl">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <div className="p-6 rounded-full bg-gradient-to-br from-primary to-secondary">
+                <CheckCircle2 className="h-16 w-16 text-primary-foreground" />
+              </div>
+            </div>
+            <CardTitle className="text-3xl mb-2">Quiz Completed!</CardTitle>
+            <CardDescription className="text-lg">{quiz.title}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-4 text-center">
+              <div className="p-6 rounded-lg bg-muted">
+                <div className="text-4xl font-bold text-primary mb-2">{correctAnswers}/{totalQuestions}</div>
+                <div className="text-sm text-muted-foreground">Correct Answers</div>
+              </div>
+              <div className="p-6 rounded-lg bg-muted">
+                <div className="text-4xl font-bold text-accent mb-2">{score}</div>
+                <div className="text-sm text-muted-foreground">Points Earned</div>
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-semibold mb-2">Score: {percentCorrect}%</div>
+              <Progress value={percentCorrect} className="h-3" />
+            </div>
+
+            {score > 0 ? (
+              <div className="p-4 rounded-lg bg-primary/10 border border-primary text-center">
+                <p className="text-lg font-semibold text-primary">
+                  🎉 {score} Eco Points added to your account!
+                </p>
+              </div>
+            ) : (
+              <div className="p-4 rounded-lg bg-muted text-center">
+                <p className="text-sm text-muted-foreground">
+                  Keep learning! Review the feedback to improve your eco-knowledge.
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowCompletion(false);
+                  setCurrentQuestion(0);
+                  setSelectedAnswer(null);
+                  setShowFeedback(false);
+                  setScore(0);
+                  setCorrectAnswers(0);
+                }}
+              >
+                Retake Quiz
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={() => navigate("/dashboard")}
+              >
+                Back to Dashboard
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const question = quiz.questions_json[currentQuestion];
