@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Lock, CheckCircle2, Sparkles, Star } from "lucide-react";
+import { Lock, CheckCircle2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -39,6 +39,17 @@ export const AdventurePathMap = () => {
   const [hoveredQuiz, setHoveredQuiz] = useState<string | null>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const { data: quizzes = [] } = useQuery({
     queryKey: ["quizzes"],
@@ -113,12 +124,35 @@ export const AdventurePathMap = () => {
     navigate(`/quiz/${quiz.id}`);
   };
 
+  const handleMouseLeave = (quizId: string) => {
+    // Clear any existing timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    
+    // Set a 500ms delay before closing
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredQuiz(null);
+    }, 500);
+  };
+
+  const handleMouseEnter = (quizId: string, position: PathPoint) => {
+    // Clear any pending timeout
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    
+    setHoveredQuiz(quizId);
+    setHoverPosition({ x: position.x, y: position.y });
+  };
+
   // Generate winding S-curve path
   const generatePathPoints = (numPoints: number): PathPoint[] => {
     const points: PathPoint[] = [];
-    const amplitude = 150; // Width of the curve
-    const verticalSpacing = 180; // Vertical distance between nodes
-    const centerX = 300; // Center of the container
+    const amplitude = isMobile ? 80 : 150; // Narrower curve on mobile
+    const verticalSpacing = isMobile ? 160 : 180; // Tighter spacing on mobile
+    const centerX = isMobile ? 200 : 300; // Adjust center for mobile
     
     for (let i = 0; i < numPoints; i++) {
       const y = i * verticalSpacing + 100;
@@ -192,7 +226,12 @@ export const AdventurePathMap = () => {
 
   const pathPoints = generatePathPoints(Math.max(quizzes.length, 8));
   const svgPath = generateSVGPath(pathPoints);
-  const decorations = generateDecorations(pathPoints);
+  
+  // Memoize decorations so they don't change between renders
+  const decorations = useRef<Decoration[]>();
+  if (!decorations.current) {
+    decorations.current = generateDecorations(pathPoints);
+  }
 
   const renderDecoration = (decoration: Decoration, index: number) => {
     const { x, y, type, size } = decoration;
@@ -234,15 +273,12 @@ export const AdventurePathMap = () => {
     }
   };
 
-  const getStarRating = (score: number, totalQuestions: number) => {
-    const percentage = (score / (totalQuestions * 10)) * 100;
-    if (percentage >= 90) return 3;
-    if (percentage >= 70) return 2;
-    return 1;
+  const getProgressPercentage = (score: number, totalQuestions: number) => {
+    return Math.min((score / (totalQuestions * 10)) * 100, 100);
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-3xl shadow-[var(--shadow-lg)]">
+    <div className="relative w-full overflow-hidden rounded-3xl shadow-[var(--shadow-lg)] max-w-full">
       {/* Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-sky-100 via-green-50 to-green-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900" />
       
@@ -250,14 +286,17 @@ export const AdventurePathMap = () => {
       <div 
         ref={containerRef}
         className="relative overflow-y-auto overflow-x-hidden"
-        style={{ height: '700px' }}
+        style={{ height: isMobile ? '600px' : '700px' }}
       >
         <svg 
           className="absolute top-0 left-0 w-full pointer-events-none" 
-          style={{ height: `${pathPoints[pathPoints.length - 1]?.y + 200}px` }}
+          style={{ 
+            height: `${pathPoints[pathPoints.length - 1]?.y + 200}px`,
+            minWidth: isMobile ? '400px' : '600px'
+          }}
         >
           {/* Decorations */}
-          {decorations.map((decoration, index) => renderDecoration(decoration, index))}
+          {decorations.current?.map((decoration, index) => renderDecoration(decoration, index))}
           
           {/* Path Shadow */}
           <path
@@ -295,12 +334,17 @@ export const AdventurePathMap = () => {
         </svg>
 
         {/* Quiz Nodes */}
-        <div className="relative" style={{ height: `${pathPoints[pathPoints.length - 1]?.y + 200}px` }}>
+        <div className="relative" style={{ 
+          height: `${pathPoints[pathPoints.length - 1]?.y + 200}px`,
+          minWidth: isMobile ? '400px' : '600px'
+        }}>
           {quizzes.map((quiz, index) => {
             const { status, unlocked, score } = getQuizStatus(quiz, index);
             const position = pathPoints[index] || pathPoints[pathPoints.length - 1];
             const isHovered = hoveredQuiz === quiz.id;
-            const stars = status === "completed" ? getStarRating(score, quiz.questions_json.length) : 0;
+            const progressPercentage = status === "completed" ? getProgressPercentage(score, quiz.questions_json.length) : 0;
+            const nodeSize = isMobile ? 16 : 20;
+            const circleRadius = isMobile ? 28 : 36;
 
             return (
               <div
@@ -313,64 +357,97 @@ export const AdventurePathMap = () => {
                   zIndex: isHovered ? 20 : 10,
                 }}
               >
+                {/* Progress Circle for Completed Quizzes */}
+                {status === "completed" && (
+                  <svg className="absolute inset-0 w-24 h-24 -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2" style={{ transform: 'translate(-50%, -50%) rotate(-90deg)' }}>
+                    <circle
+                      cx="48"
+                      cy="48"
+                      r={circleRadius}
+                      fill="none"
+                      stroke="hsl(var(--muted))"
+                      strokeWidth="4"
+                      opacity="0.3"
+                    />
+                    <circle
+                      cx="48"
+                      cy="48"
+                      r={circleRadius}
+                      fill="none"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth="4"
+                      strokeDasharray={`${2 * Math.PI * circleRadius}`}
+                      strokeDashoffset={`${2 * Math.PI * circleRadius * (1 - progressPercentage / 100)}`}
+                      strokeLinecap="round"
+                      className="transition-all duration-500"
+                    />
+                  </svg>
+                )}
+
+                {/* Glowing Ring for Current Quiz */}
+                {status === "current" && (
+                  <>
+                    <svg className="absolute inset-0 w-24 h-24 -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2 animate-pulse">
+                      <circle
+                        cx="48"
+                        cy="48"
+                        r={circleRadius + 2}
+                        fill="none"
+                        stroke="hsl(var(--accent))"
+                        strokeWidth="3"
+                        opacity="0.6"
+                      />
+                    </svg>
+                    <svg className="absolute inset-0 w-28 h-28 -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2 animate-ping" style={{ animationDuration: '2s' }}>
+                      <circle
+                        cx="56"
+                        cy="56"
+                        r={circleRadius + 8}
+                        fill="none"
+                        stroke="hsl(var(--accent))"
+                        strokeWidth="2"
+                        opacity="0.3"
+                      />
+                    </svg>
+                  </>
+                )}
+                
                 {/* Quiz Node */}
                 <div
-                  className={`relative w-20 h-20 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 ${
+                  className={`relative rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 ${
                     status === "completed"
-                      ? "bg-gradient-to-br from-primary to-secondary shadow-[var(--shadow-glow)] scale-110"
+                      ? "bg-gradient-to-br from-primary to-secondary shadow-[var(--shadow-glow)]"
                       : status === "current"
-                      ? "bg-gradient-to-br from-accent to-gold shadow-[var(--shadow-gold)] animate-pulse scale-110"
-                      : "bg-muted opacity-60 scale-100"
-                  } ${isHovered ? 'scale-125' : ''}`}
+                      ? "bg-gradient-to-br from-accent via-gold to-accent shadow-[var(--shadow-gold)] animate-[pulse_2s_ease-in-out_infinite]"
+                      : "bg-muted opacity-60"
+                  } ${isHovered ? 'scale-110' : ''}`}
+                  style={{
+                    width: `${nodeSize * 4}px`,
+                    height: `${nodeSize * 4}px`,
+                  }}
                   onClick={() => handleStartQuiz(quiz, unlocked)}
-                  onMouseEnter={(e) => {
-                    setHoveredQuiz(quiz.id);
-                    setHoverPosition({ x: position.x, y: position.y });
-                  }}
-                  onMouseLeave={(e) => {
-                    // Check if we're moving to the hover card
-                    const relatedTarget = e.relatedTarget as HTMLElement;
-                    if (!relatedTarget?.closest('.hover-card')) {
-                      setHoveredQuiz(null);
-                    }
-                  }}
+                  onMouseEnter={() => handleMouseEnter(quiz.id, position)}
+                  onMouseLeave={() => handleMouseLeave(quiz.id)}
                 >
                   {status === "completed" && (
-                    <CheckCircle2 className="h-10 w-10 text-primary-foreground" />
+                    <CheckCircle2 className={`${isMobile ? 'h-8 w-8' : 'h-10 w-10'} text-primary-foreground`} />
                   )}
                   {status === "current" && (
                     <div className="relative">
-                      <Sparkles className="h-10 w-10 text-gold-foreground" />
-                      <div className="absolute inset-0 animate-ping">
-                        <Sparkles className="h-10 w-10 text-gold-foreground opacity-50" />
-                      </div>
+                      <Sparkles className={`${isMobile ? 'h-8 w-8' : 'h-10 w-10'} text-gold-foreground drop-shadow-lg`} />
                     </div>
                   )}
                   {status === "locked" && (
-                    <Lock className="h-8 w-8 text-muted-foreground" />
+                    <Lock className={`${isMobile ? 'h-6 w-6' : 'h-8 w-8'} text-muted-foreground`} />
                   )}
                 </div>
 
-                {/* Star Rating for Completed */}
-                {status === "completed" && stars > 0 && (
-                  <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 flex gap-1">
-                    {[...Array(3)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i < stars ? 'text-gold fill-gold' : 'text-muted'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                )}
-
                 {/* Hover Card */}
-                {isHovered && (
+                {isHovered && !isMobile && (
                   <Card 
                     className="hover-card absolute left-24 top-0 w-80 shadow-[var(--shadow-lg)] animate-in fade-in slide-in-from-left-2 duration-200 z-30 bg-card"
-                    onMouseEnter={() => setHoveredQuiz(quiz.id)}
-                    onMouseLeave={() => setHoveredQuiz(null)}
+                    onMouseEnter={() => handleMouseEnter(quiz.id, position)}
+                    onMouseLeave={() => handleMouseLeave(quiz.id)}
                   >
                     <CardHeader>
                       <div className="flex items-center justify-between">
