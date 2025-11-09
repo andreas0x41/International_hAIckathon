@@ -7,6 +7,7 @@ import { RewardsMarketplace } from "@/components/RewardsMarketplace";
 import { PointsBadge } from "@/components/PointsBadge";
 import { RewardProgress } from "@/components/RewardProgress";
 import { AccountMenu } from "@/components/AccountMenu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Leaf, Flame, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 
@@ -133,30 +134,64 @@ const Dashboard = () => {
           </Tabs>
           
           {/* Right Side Stats and Account */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-card/50 border border-border/50 shadow-sm">
-              <PointsBadge points={profile.total_points} className="text-xs py-1 px-2.5" />
-              <div className="h-5 w-px bg-border" />
-              <div className="flex items-center gap-1.5">
-                <Flame className="h-4 w-4 text-orange-500" />
-                <span className="text-sm font-bold">{profile.current_streak || 0}</span>
+          <TooltipProvider delayDuration={200}>
+            <div className="flex items-center gap-3">
+              <RewardProgress 
+                userPoints={profile.total_points}
+                onNavigateToRewards={() => setActiveTab("rewards")}
+                compact={true}
+              />
+              
+              <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-card/50 border border-border/50 shadow-sm">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <PointsBadge points={profile.total_points} className="text-xs py-1 px-2.5" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-card border-border">
+                    <p className="text-xs font-semibold">Total Points Earned</p>
+                    <p className="text-[10px] text-muted-foreground">Use points to redeem rewards</p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                <div className="h-5 w-px bg-border" />
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5 cursor-default">
+                      <Flame className="h-4 w-4 text-orange-500" />
+                      <span className="text-sm font-bold">{profile.current_streak || 0}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-card border-border">
+                    <p className="text-xs font-semibold">Current Streak: {profile.current_streak || 0} days</p>
+                    <p className="text-[10px] text-muted-foreground">Longest: {profile.longest_streak || 0} days</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Complete quizzes daily to maintain</p>
+                  </TooltipContent>
+                </Tooltip>
+                
+                <div className="h-5 w-px bg-border" />
+                
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5 cursor-default">
+                      <TrendingUp className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-bold">{profile.current_level}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="bg-card border-border">
+                    <p className="text-xs font-semibold">Current Level</p>
+                    <p className="text-[10px] text-muted-foreground">Level up by earning more points</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
-              <div className="h-5 w-px bg-border" />
-              <div className="flex items-center gap-1.5">
-                <TrendingUp className="h-4 w-4 text-primary" />
-                <span className="text-sm font-bold">{profile.current_level}</span>
-              </div>
+              
+              <AccountMenu username={profile.username} onSignOut={handleSignOut} />
             </div>
-            <AccountMenu username={profile.username} onSignOut={handleSignOut} />
-          </div>
+          </TooltipProvider>
         </div>
       </header>
-
-      {/* Reward Progress - Fixed top right */}
-      <RewardProgress 
-        userPoints={profile.total_points}
-        onNavigateToRewards={() => setActiveTab("rewards")}
-      />
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
