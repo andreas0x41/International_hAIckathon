@@ -101,11 +101,11 @@ const Admin = () => {
     setDescription(quiz.description || "");
     setPointsPerQuestion(quiz.points_per_question || 10);
     
-    // Ensure questions have proper structure
+    // Ensure questions have proper structure and handle both correctAnswer and correct_index formats
     const loadedQuestions = quiz.questions_json?.map((q: any) => ({
       question: q.question || "",
       options: Array.isArray(q.options) ? q.options : ["", "", "", ""],
-      correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+      correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : (typeof q.correct_index === 'number' ? q.correct_index : 0),
     })) || [{ question: "", options: ["", "", "", ""], correctAnswer: 0 }];
     
     setQuestions(loadedQuestions);
