@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Leaf, Plus, Trash2, ArrowLeft, Upload, FileJson } from "lucide-react";
+import { Leaf, Plus, Trash2, ArrowLeft, Upload, FileJson, Edit, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 // Validation schema
 const questionSchema = z.object({
@@ -59,6 +60,98 @@ const Admin = () => {
     { question: "", options: ["", "", "", ""], correctAnswer: 0 }
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
+  const [existingQuizzes, setExistingQuizzes] = useState<any[]>([]);
+  const [isLoadingQuizzes, setIsLoadingQuizzes] = useState(true);
+
+  useEffect(() => {
+    fetchQuizzes();
+  }, []);
+
+  const fetchQuizzes = async () => {
+    try {
+      setIsLoadingQuizzes(true);
+      const { data, error } = await supabase
+        .from("quizzes")
+        .select("*")
+        .order("path_order", { ascending: true });
+
+      if (error) throw error;
+      setExistingQuizzes(data || []);
+    } catch (error) {
+      console.error("Error fetching quizzes:", error);
+      toast.error("Failed to load quizzes");
+    } finally {
+      setIsLoadingQuizzes(false);
+    }
+  };
+
+  const handleEditQuiz = (quiz: any) => {
+    setEditingQuizId(quiz.id);
+    setTitle(quiz.title);
+    setDescription(quiz.description);
+    setPointsPerQuestion(quiz.points_per_question);
+    setQuestions(quiz.questions_json);
+    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  };
+
+  const handleDeleteQuiz = async (quizId: string) => {
+    try {
+      const { error } = await supabase
+        .from("quizzes")
+        .delete()
+        .eq("id", quizId);
+
+      if (error) throw error;
+
+      toast.success("Quiz deleted successfully");
+      fetchQuizzes();
+    } catch (error) {
+      console.error("Error deleting quiz:", error);
+      toast.error("Failed to delete quiz");
+    }
+  };
+
+  const handleReorderQuiz = async (quizId: string, direction: 'up' | 'down') => {
+    const quizIndex = existingQuizzes.findIndex(q => q.id === quizId);
+    if (quizIndex === -1) return;
+
+    const currentQuiz = existingQuizzes[quizIndex];
+    const swapIndex = direction === 'up' ? quizIndex - 1 : quizIndex + 1;
+
+    if (swapIndex < 0 || swapIndex >= existingQuizzes.length) return;
+
+    const swapQuiz = existingQuizzes[swapIndex];
+
+    try {
+      // Swap the path_order values
+      const { error: error1 } = await supabase
+        .from("quizzes")
+        .update({ path_order: swapQuiz.path_order })
+        .eq("id", currentQuiz.id);
+
+      const { error: error2 } = await supabase
+        .from("quizzes")
+        .update({ path_order: currentQuiz.path_order })
+        .eq("id", swapQuiz.id);
+
+      if (error1 || error2) throw error1 || error2;
+
+      toast.success("Quiz order updated");
+      fetchQuizzes();
+    } catch (error) {
+      console.error("Error reordering quiz:", error);
+      toast.error("Failed to reorder quiz");
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingQuizId(null);
+    setTitle("");
+    setDescription("");
+    setPointsPerQuestion(10);
+    setQuestions([{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -181,24 +274,42 @@ const Admin = () => {
 
       if (fetchError) throw fetchError;
 
-      const nextOrder = existingQuizzes && existingQuizzes.length > 0 
-        ? existingQuizzes[0].path_order + 1 
-        : 1;
+      if (editingQuizId) {
+        // Update existing quiz
+        const { error: updateError } = await supabase
+          .from("quizzes")
+          .update({
+            title: validatedData.title,
+            description: validatedData.description,
+            points_per_question: validatedData.points_per_question,
+            questions_json: validatedData.questions,
+          })
+          .eq("id", editingQuizId);
 
-      // Insert the quiz
-      const { error: insertError } = await supabase
-        .from("quizzes")
-        .insert({
-          title: validatedData.title,
-          description: validatedData.description,
-          path_order: nextOrder,
-          points_per_question: validatedData.points_per_question,
-          questions_json: validatedData.questions,
-        });
+        if (updateError) throw updateError;
 
-      if (insertError) throw insertError;
+        toast.success("Quiz updated successfully!");
+        setEditingQuizId(null);
+      } else {
+        // Insert new quiz
+        const nextOrder = existingQuizzes && existingQuizzes.length > 0 
+          ? existingQuizzes[0].path_order + 1 
+          : 1;
+
+        const { error: insertError } = await supabase
+          .from("quizzes")
+          .insert({
+            title: validatedData.title,
+            description: validatedData.description,
+            path_order: nextOrder,
+            points_per_question: validatedData.points_per_question,
+            questions_json: validatedData.questions,
+          });
+
+        if (insertError) throw insertError;
 
       toast.success(`Quiz created successfully at position ${nextOrder}!`);
+      }
       
       // Reset form
       setTitle("");
@@ -206,8 +317,8 @@ const Admin = () => {
       setPointsPerQuestion(10);
       setQuestions([{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
       
-      // Navigate back to dashboard
-      setTimeout(() => navigate("/dashboard"), 1500);
+      // Refresh quiz list
+      fetchQuizzes();
 
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -245,12 +356,102 @@ const Admin = () => {
       </header>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 max-w-4xl space-y-8">
+        {/* Existing Quizzes Management */}
         <Card>
           <CardHeader>
-            <CardTitle>Create New Quiz</CardTitle>
+            <CardTitle>Manage Existing Quizzes</CardTitle>
             <CardDescription>
-              Add a new quiz to the learning path. It will automatically appear at the next position.
+              Edit, reorder, or delete quizzes from the learning path.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoadingQuizzes ? (
+              <p className="text-muted-foreground text-center py-4">Loading quizzes...</p>
+            ) : existingQuizzes.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">No quizzes yet. Create one below!</p>
+            ) : (
+              <div className="space-y-3">
+                {existingQuizzes.map((quiz, index) => (
+                  <div key={quiz.id} className="flex items-center gap-3 p-4 border rounded-lg bg-muted/50">
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleReorderQuiz(quiz.id, 'up')}
+                        disabled={index === 0}
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleReorderQuiz(quiz.id, 'down')}
+                        disabled={index === existingQuizzes.length - 1}
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-muted-foreground">#{quiz.path_order}</span>
+                        <h3 className="font-semibold truncate">{quiz.title}</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground truncate">{quiz.description}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {quiz.questions_json?.length || 0} questions • {quiz.points_per_question} pts each
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditQuiz(quiz)}
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Quiz?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete "{quiz.title}" and all associated progress. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteQuiz(quiz.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Create/Edit Quiz Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{editingQuizId ? "Edit Quiz" : "Create New Quiz"}</CardTitle>
+            <CardDescription>
+              {editingQuizId 
+                ? "Update the quiz details below." 
+                : "Add a new quiz to the learning path. It will automatically appear at the next position."}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -417,10 +618,15 @@ const Admin = () => {
               {/* Submit */}
               <div className="flex gap-4">
                 <Button type="submit" disabled={isSubmitting} className="flex-1">
-                  {isSubmitting ? "Creating..." : "Create Quiz"}
+                  {isSubmitting ? (editingQuizId ? "Updating..." : "Creating...") : (editingQuizId ? "Update Quiz" : "Create Quiz")}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => navigate("/dashboard")}>
-                  Cancel
+                {editingQuizId && (
+                  <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                    Cancel Edit
+                  </Button>
+                )}
+                <Button type="button" variant="ghost" onClick={() => navigate("/dashboard")}>
+                  Back
                 </Button>
               </div>
             </form>
