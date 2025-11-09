@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Gift, Coins } from "lucide-react";
@@ -19,6 +19,7 @@ interface RewardProgressProps {
 
 export const RewardProgress = ({ userPoints, onNavigateToRewards, compact = false }: RewardProgressProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: rewards = [] } = useQuery({
     queryKey: ["rewards"],
@@ -44,12 +45,29 @@ export const RewardProgress = ({ userPoints, onNavigateToRewards, compact = fals
     onNavigateToRewards();
   };
 
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setIsExpanded(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsExpanded(false);
+    }, 500);
+  };
+
   if (compact) {
     return (
       <div
         className="transition-all duration-300 cursor-pointer"
-        onMouseEnter={() => setIsExpanded(true)}
-        onMouseLeave={() => setIsExpanded(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         onClick={handleClick}
       >
         <div
@@ -91,7 +109,11 @@ export const RewardProgress = ({ userPoints, onNavigateToRewards, compact = fals
 
           {/* Expanded Details */}
           {isExpanded && (
-            <div className="animate-in fade-in slide-in-from-left-2 duration-200 flex-1 min-w-0">
+            <div 
+              className="animate-in fade-in slide-in-from-left-2 duration-200 flex-1 min-w-0"
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
               <p className="text-xs font-semibold truncate">{nextReward.title}</p>
               <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                 <Coins className="h-3 w-3 text-gold" />

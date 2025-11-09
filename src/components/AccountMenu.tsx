@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { LogOut, Settings, User } from "lucide-react";
+import { useState, useRef } from "react";
+import { LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface AccountMenuProps {
@@ -9,6 +9,7 @@ interface AccountMenuProps {
 
 export const AccountMenu = ({ username, onSignOut }: AccountMenuProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const getInitials = (name: string) => {
     return name
@@ -19,11 +20,28 @@ export const AccountMenu = ({ username, onSignOut }: AccountMenuProps) => {
       .slice(0, 2);
   };
 
+  const handleMouseEnter = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setIsExpanded(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsExpanded(false);
+    }, 500);
+  };
+
   return (
     <div
       className="relative"
-      onMouseEnter={() => setIsExpanded(true)}
-      onMouseLeave={() => setIsExpanded(false)}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Initials Circle */}
       <div
@@ -43,7 +61,11 @@ export const AccountMenu = ({ username, onSignOut }: AccountMenuProps) => {
 
       {/* Expanded Menu */}
       {isExpanded && (
-        <div className="absolute top-full right-0 mt-1 w-48 bg-card border border-border rounded-lg shadow-[var(--shadow-lg)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
+        <div 
+          className="absolute top-full right-0 mt-1 w-48 bg-card border border-border rounded-lg shadow-[var(--shadow-lg)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-[60]"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
           <div className="p-2 space-y-1 bg-card">
             <Button
               variant="ghost"

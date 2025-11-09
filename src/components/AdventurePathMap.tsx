@@ -30,8 +30,9 @@ interface PathPoint {
 interface Decoration {
   x: number;
   y: number;
-  type: 'tree' | 'grass' | 'flower' | 'cloud';
+  type: 'tree' | 'grass' | 'flower' | 'cloud' | 'rock' | 'mushroom' | 'butterfly';
   size: number;
+  rotation?: number;
 }
 
 export const AdventurePathMap = () => {
@@ -189,8 +190,8 @@ export const AdventurePathMap = () => {
   // Generate random decorations that don't overlap with nodes
   const generateDecorations = (pathPoints: PathPoint[]): Decoration[] => {
     const decorations: Decoration[] = [];
-    const types: Decoration['type'][] = ['tree', 'grass', 'flower', 'cloud'];
-    const numDecorations = 30;
+    const types: Decoration['type'][] = ['tree', 'grass', 'flower', 'cloud', 'rock', 'mushroom', 'butterfly'];
+    const numDecorations = isMobile ? 20 : 40;
     
     for (let i = 0; i < numDecorations; i++) {
       const type = types[Math.floor(Math.random() * types.length)];
@@ -217,6 +218,7 @@ export const AdventurePathMap = () => {
           y: y!,
           type,
           size: Math.random() * 20 + 15,
+          rotation: Math.random() * 360,
         });
       }
     }
@@ -234,7 +236,7 @@ export const AdventurePathMap = () => {
   }
 
   const renderDecoration = (decoration: Decoration, index: number) => {
-    const { x, y, type, size } = decoration;
+    const { x, y, type, size, rotation = 0 } = decoration;
     
     switch (type) {
       case 'tree':
@@ -270,6 +272,30 @@ export const AdventurePathMap = () => {
             <ellipse cx={-size * 0.3} cy="-2" rx={size * 0.5} ry={size * 0.35} fill="hsl(var(--muted-foreground))" />
           </g>
         );
+      case 'rock':
+        return (
+          <g key={`dec-${index}`} transform={`translate(${x}, ${y}) rotate(${rotation})`} opacity="0.5">
+            <ellipse cx="0" cy="0" rx={size * 0.5} ry={size * 0.4} fill="hsl(var(--muted))" />
+            <ellipse cx="-3" cy="-2" rx={size * 0.3} ry={size * 0.25} fill="hsl(var(--muted))" opacity="0.7" />
+          </g>
+        );
+      case 'mushroom':
+        return (
+          <g key={`dec-${index}`} transform={`translate(${x}, ${y})`} opacity="0.7">
+            <rect x="-2" y="-5" width="4" height={size * 0.4} fill="hsl(var(--muted-foreground))" rx="2" />
+            <ellipse cx="0" cy={-size * 0.4} rx={size * 0.4} ry={size * 0.25} fill="hsl(var(--destructive))" opacity="0.6" />
+            <circle cx="-3" cy={-size * 0.4} r="2" fill="hsl(var(--background))" opacity="0.8" />
+            <circle cx="3" cy={-size * 0.35} r="1.5" fill="hsl(var(--background))" opacity="0.8" />
+          </g>
+        );
+      case 'butterfly':
+        return (
+          <g key={`dec-${index}`} transform={`translate(${x}, ${y}) rotate(${rotation})`} opacity="0.6" className="animate-pulse" style={{ animationDuration: '3s' }}>
+            <ellipse cx="-4" cy="0" rx={size * 0.25} ry={size * 0.35} fill="hsl(var(--accent))" />
+            <ellipse cx="4" cy="0" rx={size * 0.25} ry={size * 0.35} fill="hsl(var(--accent))" />
+            <line x1="0" y1="-5" x2="0" y2="5" stroke="hsl(var(--foreground))" strokeWidth="1" />
+          </g>
+        );
     }
   };
 
@@ -278,7 +304,7 @@ export const AdventurePathMap = () => {
   };
 
   return (
-    <div className="relative w-full overflow-hidden rounded-3xl shadow-[var(--shadow-lg)] max-w-full">
+    <div className="relative w-full overflow-hidden rounded-3xl shadow-[var(--shadow-lg)] max-w-full mx-auto">
       {/* Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-sky-100 via-green-50 to-green-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900" />
       
@@ -288,13 +314,15 @@ export const AdventurePathMap = () => {
         className="relative overflow-y-auto overflow-x-hidden"
         style={{ height: isMobile ? '600px' : '700px' }}
       >
-        <svg 
-          className="absolute top-0 left-0 w-full pointer-events-none" 
-          style={{ 
-            height: `${pathPoints[pathPoints.length - 1]?.y + 200}px`,
-            minWidth: isMobile ? '400px' : '600px'
-          }}
-        >
+        <div className="relative mx-auto" style={{ width: isMobile ? '100%' : '600px', maxWidth: '100%' }}>
+          <svg 
+            className="absolute top-0 left-0 w-full pointer-events-none" 
+            style={{ 
+              height: `${pathPoints[pathPoints.length - 1]?.y + 200}px`,
+            }}
+            viewBox={isMobile ? "0 0 400 2000" : "0 0 600 2000"}
+            preserveAspectRatio="xMidYMid meet"
+          >
           {/* Decorations */}
           {decorations.current?.map((decoration, index) => renderDecoration(decoration, index))}
           
@@ -333,11 +361,10 @@ export const AdventurePathMap = () => {
           />
         </svg>
 
-        {/* Quiz Nodes */}
-        <div className="relative" style={{ 
-          height: `${pathPoints[pathPoints.length - 1]?.y + 200}px`,
-          minWidth: isMobile ? '400px' : '600px'
-        }}>
+          {/* Quiz Nodes */}
+          <div className="relative" style={{ 
+            height: `${pathPoints[pathPoints.length - 1]?.y + 200}px`,
+          }}>
           {quizzes.map((quiz, index) => {
             const { status, unlocked, score } = getQuizStatus(quiz, index);
             const position = pathPoints[index] || pathPoints[pathPoints.length - 1];
@@ -386,30 +413,17 @@ export const AdventurePathMap = () => {
 
                 {/* Glowing Ring for Current Quiz */}
                 {status === "current" && (
-                  <>
-                    <svg className="absolute inset-0 w-24 h-24 -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2 animate-pulse">
-                      <circle
-                        cx="48"
-                        cy="48"
-                        r={circleRadius + 2}
-                        fill="none"
-                        stroke="hsl(var(--accent))"
-                        strokeWidth="3"
-                        opacity="0.6"
-                      />
-                    </svg>
-                    <svg className="absolute inset-0 w-28 h-28 -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2 animate-ping" style={{ animationDuration: '2s' }}>
-                      <circle
-                        cx="56"
-                        cy="56"
-                        r={circleRadius + 8}
-                        fill="none"
-                        stroke="hsl(var(--accent))"
-                        strokeWidth="2"
-                        opacity="0.3"
-                      />
-                    </svg>
-                  </>
+                  <svg className="absolute inset-0 w-24 h-24 -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2">
+                    <circle
+                      cx="48"
+                      cy="48"
+                      r={circleRadius + 2}
+                      fill="none"
+                      stroke="hsl(var(--accent))"
+                      strokeWidth="3"
+                      opacity="0.6"
+                    />
+                  </svg>
                 )}
                 
                 {/* Quiz Node */}
@@ -418,7 +432,7 @@ export const AdventurePathMap = () => {
                     status === "completed"
                       ? "bg-gradient-to-br from-primary to-secondary shadow-[var(--shadow-glow)]"
                       : status === "current"
-                      ? "bg-gradient-to-br from-accent via-gold to-accent shadow-[var(--shadow-gold)] animate-[pulse_2s_ease-in-out_infinite]"
+                      ? "bg-gradient-to-br from-accent via-gold to-accent shadow-[var(--shadow-gold)]"
                       : "bg-muted opacity-60"
                   } ${isHovered ? 'scale-110' : ''}`}
                   style={{
@@ -489,6 +503,7 @@ export const AdventurePathMap = () => {
               </div>
             );
           })}
+          </div>
         </div>
       </div>
     </div>
