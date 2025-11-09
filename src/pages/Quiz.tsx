@@ -48,6 +48,20 @@ const Quiz = () => {
     checkAuth();
   }, []);
 
+  // Reset quiz state when quizId changes
+  useEffect(() => {
+    setCurrentQuestion(0);
+    setSelectedAnswer(null);
+    setShowFeedback(false);
+    setAiFeedback("");
+    setScore(0);
+    setCorrectAnswers(0);
+    setShowCompletion(false);
+    setStreakBonus(0);
+    setNewStreak(0);
+    setIsNewRecord(false);
+  }, [quizId]);
+
   const { data: quiz, isLoading } = useQuery({
     queryKey: ["quiz", quizId],
     queryFn: async () => {
@@ -224,14 +238,14 @@ const Quiz = () => {
   });
 
   const handleAnswerSelect = async (answerIndex: number) => {
-    if (!quiz || showFeedback) return;
+    if (!quiz || showFeedback || selectedAnswer !== null) return;
 
     setSelectedAnswer(answerIndex);
     const question = quiz.questions_json[currentQuestion];
     const correct = answerIndex === question.correct_index;
 
     if (correct) {
-      setCorrectAnswers(prev => prev + 1);
+      setCorrectAnswers(prev => Math.min(prev + 1, quiz.questions_json.length));
       setScore(prev => prev + quiz.points_per_question);
     }
 

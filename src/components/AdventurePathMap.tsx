@@ -117,15 +117,17 @@ export const AdventurePathMap = () => {
     if (isGuest) {
       const guestQuizProgress = guestProgress.find((p) => p.quiz_id === quiz.id);
       
+      // If this quiz is completed, show it as completed
       if (guestQuizProgress?.completed_at) {
         return { status: "completed", unlocked: true, score: guestQuizProgress.score };
       }
       
-      if (index === 0 || guestQuizProgress?.is_unlocked) {
+      // First quiz is always unlocked
+      if (index === 0) {
         return { status: "current", unlocked: true, score: 0 };
       }
       
-      // Check if previous quiz is completed
+      // Check if previous quiz is completed - only then unlock this quiz
       const previousQuiz = quizzes[index - 1];
       const previousGuestProgress = guestProgress.find((p) => p.quiz_id === previousQuiz?.id);
       
@@ -136,16 +138,20 @@ export const AdventurePathMap = () => {
       return { status: "locked", unlocked: false, score: 0 };
     }
     
+    // Authenticated users
     const quizProgress = progress.find((p) => p.quiz_id === quiz.id);
     
+    // If this quiz is completed, show it as completed
     if (quizProgress?.completed_at) {
       return { status: "completed", unlocked: true, score: quizProgress.score };
     }
     
-    if (index === 0 || quizProgress?.is_unlocked) {
+    // First quiz is always unlocked
+    if (index === 0) {
       return { status: "current", unlocked: true, score: 0 };
     }
     
+    // Check if previous quiz is completed - only then unlock this quiz
     const previousQuiz = quizzes[index - 1];
     const previousProgress = progress.find((p) => p.quiz_id === previousQuiz?.id);
     
