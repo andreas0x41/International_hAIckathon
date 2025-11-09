@@ -5,8 +5,6 @@ import { Lock, CheckCircle2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import pathBg from "@/assets/eco-path-bg.jpg";
-
 interface Quiz {
   id: string;
   title: string;
@@ -130,29 +128,17 @@ export const AdventurePathMap = () => {
   };
 
   return (
-    <div 
-      className="relative min-h-[700px] rounded-3xl overflow-hidden shadow-[var(--shadow-lg)]"
-      style={{
-        backgroundImage: `url(${pathBg})`,
-        backgroundSize: '400px 400px',
-        backgroundRepeat: 'repeat',
-        animation: 'scroll-bg 60s linear infinite',
-      }}
-    >
-      {/* Animated background keyframes in style tag */}
-      <style>{`
-        @keyframes scroll-bg {
-          from {
-            background-position: 0 0;
-          }
-          to {
-            background-position: 400px 400px;
-          }
-        }
-      `}</style>
+    <div className="relative min-h-[700px] rounded-3xl overflow-hidden shadow-[var(--shadow-lg)] bg-gradient-to-br from-background via-muted/30 to-background">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 opacity-20">
+        <div className="absolute top-10 left-10 w-32 h-32 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute top-40 right-20 w-40 h-40 rounded-full bg-secondary/20 blur-3xl" />
+        <div className="absolute bottom-20 left-1/3 w-36 h-36 rounded-full bg-accent/20 blur-3xl" />
+        <div className="absolute bottom-40 right-1/4 w-28 h-28 rounded-full bg-gold/20 blur-3xl" />
+      </div>
 
       {/* Overlay for better contrast */}
-      <div className="absolute inset-0 bg-background/10 backdrop-blur-[1px]" />
+      <div className="absolute inset-0 bg-background/5" />
 
       {/* SVG Path connecting nodes */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>

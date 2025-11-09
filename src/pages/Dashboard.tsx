@@ -98,21 +98,30 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       {/* Compact Header */}
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary">
-              <Leaf className="h-5 w-5 text-primary-foreground" />
+        <div className="container flex h-14 items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-primary">
+              <Leaf className="h-4 w-4 text-primary-foreground" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold">Eco Rewards</h1>
-              <p className="text-xs text-muted-foreground">Learn, Earn, Take Action</p>
-            </div>
+            <h1 className="text-base font-bold">Eco Rewards</h1>
           </div>
           
-          <div className="flex items-center gap-4">
-            <PointsBadge points={profile.total_points} className="text-sm" />
-            <Button variant="ghost" size="icon" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4" />
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border border-border/50">
+              <PointsBadge points={profile.total_points} className="text-xs py-1 px-2" />
+              <div className="h-4 w-px bg-border" />
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-muted-foreground">🔥</span>
+                <span className="font-semibold">{profile.current_streak || 0}</span>
+              </div>
+              <div className="h-4 w-px bg-border" />
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-muted-foreground">Lv</span>
+                <span className="font-semibold">{profile.current_level}</span>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleSignOut}>
+              <LogOut className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
@@ -130,17 +139,9 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-6">
-        {/* User Info and Streak */}
-        <div className="mb-6">
-          <div className="mb-4">
-            <h2 className="text-xl font-bold">Welcome back, {profile.username}!</h2>
-            <p className="text-sm text-muted-foreground">Level {profile.current_level}</p>
-          </div>
-          
-          <StreakDisplay 
-            currentStreak={profile.current_streak || 0}
-            longestStreak={profile.longest_streak || 0}
-          />
+        {/* Welcome Message */}
+        <div className="mb-4">
+          <h2 className="text-xl font-bold">Welcome back, {profile.username}! 👋</h2>
         </div>
 
         {/* Tabs */}
